@@ -1,5 +1,6 @@
 pub mod config;
 pub mod crud;
+pub mod engine;
 pub mod http;
 pub mod schemas;
 

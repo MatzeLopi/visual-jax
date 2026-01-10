@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    http::{error::Error as HTTPError, utils::random_string, utils::send_verification, AppState},
+    http::{AppState, error::Error as HTTPError, utils::random_string, utils::send_verification},
     schemas::users::User,
 };
 use sqlx::PgPool;

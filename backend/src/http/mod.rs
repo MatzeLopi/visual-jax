@@ -9,11 +9,10 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 
-pub mod error;
-pub mod utils;
-
 mod dependencies;
+pub mod error;
 mod routers;
+pub mod utils;
 
 async fn clean_db(db: PgPool) {
     // Clean the database every 12 hours
@@ -85,4 +84,5 @@ fn create_router(shared_state: &Arc<AppState>) -> Router {
     Router::new()
         .merge(routers::auth::router(shared_state.clone())) // Add auth router
         .merge(routers::user::router(shared_state.clone())) // Add user router
+        .merge(routers::compiler::router(shared_state.clone()))
 }
