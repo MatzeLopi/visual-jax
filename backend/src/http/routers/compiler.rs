@@ -1,13 +1,16 @@
 // Router for compiler related endpoints
-use crate::engine::types::{
-    ActivationType, InputType, LayerType, LossType, MetricType, OptimizerType,
+use crate::engine::{
+    graph::GraphProcessor,
+    transpiler,
+    types::{ActivationType, InputType, LayerType, LossType, MetricType, OptimizerType},
 };
 use crate::http::{AppState, error::Error as HTTPError};
+use crate::schemas::graph::NeuralGraph;
 use axum::{
     extract::Json,
     http::StatusCode,
     response::IntoResponse,
-    routing::{Router, get},
+    routing::{Router, get, post},
 };
 use schemars::schema_for;
 use std::sync::Arc;
@@ -20,6 +23,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/compiler/optimizer-types", get(get_optimizer_types))
         .route("/compiler/loss-types", get(get_loss_types))
         .route("/compiler/metric-types", get(get_metric_types))
+        .route("/compiler/compile", post(compile_graph))
         .with_state(state)
 }
 
@@ -57,4 +61,25 @@ async fn get_metric_types() -> Result<impl IntoResponse, HTTPError> {
     log::debug!("Fetching metric types");
     let metric_types = schema_for!(MetricType);
     Ok((StatusCode::OK, Json(metric_types)))
+}
+
+async fn compile_graph(
+    Json(graph): Json<NeuralGraph>,
+) -> Result<impl axum::response::IntoResponse, HTTPError> {
+    let processor = GraphProcessor::new(graph);
+
+    let sorted_nodes = processor
+        .validate_and_sort()
+        .map_err(|e| HTTPError::BadRequest(e.to_string()))?;
+
+    let incoming_map = processor.get_incoming_map();
+
+    // PASS IT
+    let python_code = transpiler::transpile(sorted_nodes, incoming_map)
+        .map_err(|e| HTTPError::InternalServerError(e.to_string()))?;
+
+    Ok((
+        StatusCode::OK,
+        Json(serde_json::json!({ "code": python_code })),
+    ))
 }

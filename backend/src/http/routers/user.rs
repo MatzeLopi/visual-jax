@@ -75,7 +75,9 @@ async fn update_password(
         Ok(StatusCode::OK)
     } else {
         log::error!("Failed to update password");
-        Err(HTTPError::InternalServerError)
+        Err(HTTPError::InternalServerError(
+            "Failed to update password".to_string(),
+        ))
     }
 }
 

@@ -1,6 +1,5 @@
-use axum::http::header::WWW_AUTHENTICATE;
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
+use axum::{Json, http::StatusCode, response::IntoResponse, response::Response};
+use serde_json::json;
 use sqlx::error::DatabaseError;
 
 #[derive(thiserror::Error, Debug)]
@@ -15,7 +14,7 @@ pub enum Error {
     NotFound,
 
     #[error("Internal Server Error")]
-    InternalServerError,
+    InternalServerError(String),
 
     #[error("an error occurred with the database")]
     Sqlx(#[from] sqlx::Error),
@@ -25,45 +24,30 @@ pub enum Error {
 
     #[error("conflict, resource already exists")]
     Conflict,
-}
 
-impl Error {
-    fn status_code(&self) -> StatusCode {
-        match self {
-            Self::Unauthorized => StatusCode::UNAUTHORIZED,
-            Self::Forbidden => StatusCode::FORBIDDEN,
-            Self::NotFound => StatusCode::NOT_FOUND,
-            Self::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR,
-            Self::Sqlx(_) | Self::Anyhow(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            Self::Conflict => StatusCode::CONFLICT,
-        }
-    }
+    #[error("bad request")]
+    BadRequest(String),
 }
 
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
-        match self {
-            Self::Unauthorized => {
-                return (
-                    self.status_code(),
-                    [(WWW_AUTHENTICATE, "JWT")],
-                    self.to_string(),
-                )
-                    .into_response();
-            }
+        let (status, error_message) = match self {
+            // Use the custom message passed to BadRequest
+            Error::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
+            Error::Conflict => (StatusCode::CONFLICT, "Conflict".to_string()),
+            Error::Unauthorized => (StatusCode::UNAUTHORIZED, "Unauthorized".to_string()),
+            Error::Forbidden => (StatusCode::FORBIDDEN, "Forbidden".to_string()),
+            Error::NotFound => (StatusCode::NOT_FOUND, "Not Found".to_string()),
+            Error::InternalServerError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            Error::Anyhow(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+            Error::Sqlx(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+        };
 
-            Self::Sqlx(ref e) => {
-                log::error!("SQLx error: {:?}", e);
-            }
+        let body = Json(json!({
+            "error": error_message,
+        }));
 
-            Self::Anyhow(ref e) => {
-                log::error!("Generic error: {:?}", e);
-            }
-
-            _ => (),
-        }
-
-        (self.status_code(), self.to_string()).into_response()
+        (status, body).into_response()
     }
 }
 

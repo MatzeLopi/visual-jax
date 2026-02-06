@@ -44,7 +44,9 @@ pub fn hash_password(password: String) -> Result<String, HTTPError> {
         Ok(password_hash) => Ok(password_hash.to_string()),
         Err(e) => {
             log::debug!("Failed to hash password: {:?}", e);
-            Err(HTTPError::InternalServerError)
+            Err(HTTPError::InternalServerError(
+                "Internal Server Error".to_string(),
+            ))
         }
     }
 }
@@ -97,7 +99,9 @@ impl AuthUser {
             }
             Err(e) => {
                 log::debug!("Failed to encode token: {:?}", e);
-                Err(HTTPError::InternalServerError)
+                Err(HTTPError::InternalServerError(
+                    "Internal Server Error".to_string(),
+                ))
             }
         }
     }

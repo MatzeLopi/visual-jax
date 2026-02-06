@@ -5,7 +5,6 @@ use serde_json::Value;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Node {
     pub id: String,
-    #[serde(flatten)]
     pub kind: NodeKind,
     #[serde(default)]
     pub position: Value, // Position im Graph Editor

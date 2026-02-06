@@ -13,11 +13,24 @@ pub enum InputType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[serde(tag = "type", content = "config")]
 pub enum LayerType {
-    Dense { dim_in: usize, dim_out: usize },
-    Custom { code: String },
+    Dense {
+        dim_in: usize,
+        dim_out: usize,
+    },
+    GRU {
+        dim_in: usize,
+        dim_hidden: usize,
+        n_hidden: usize,
+    },
+    Custom {
+        code: String,
+    },
 }
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[serde(tag = "type", content = "config")]
+
 pub enum ActivationType {
     Relu,
     Sigmoid,
@@ -27,6 +40,7 @@ pub enum ActivationType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[serde(tag = "type", content = "config")]
 pub enum LossType {
     MSE,
     CrossEntropy,
@@ -34,6 +48,7 @@ pub enum LossType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[serde(tag = "type", content = "config")]
 pub enum MetricType {
     Accuracy,
     Precision,
