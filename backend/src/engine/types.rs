@@ -16,23 +16,12 @@ pub enum InputType {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(tag = "type", content = "config")]
 pub enum LayerType {
-    Dense {
-        dim_in: isize,
-        dim_out: isize,
-    },
-    GRU {
-        dim_in: isize,
-        dim_hidden: isize,
-        n_hidden: isize,
-    },
-    Concat {
-        axis: isize,
-    },
+    Dense { dim_in: isize, dim_out: isize },
+    Concat { axis: isize },
+    GruCell { dim_in: isize, dim_out: isize },
     Add,
     Flatten,
-    Custom {
-        code: String,
-    },
+    Custom { code: String },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]

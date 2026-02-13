@@ -19,7 +19,6 @@ pub fn transpile(
     // 1. Initialize Template Engine
     let mut tera = Tera::default();
     tera.add_raw_template("model.py", include_str!("../../templates/model.py.j2"))?;
-    tera.add_raw_template("gru_module", include_str!("../../templates/gru.py.j2"))?;
 
     // 2. State Tracking
     let mut init_lines = Vec::new();
@@ -27,10 +26,8 @@ pub fn transpile(
     let mut extra_classes = String::new();
 
     // Flags & tables
-    let mut has_gru = false;
     let mut var_map: HashMap<String, String> = HashMap::new(); // Maps NodeID -> Python Var Name
     let mut last_output_var = "x".to_string(); // Default to input 'x' if graph is empty
-    let mut has_explicit_return = false;
 
     // 3. Iterate Nodes in Topological Order
     for (id, kind) in sorted_nodes {
@@ -76,25 +73,35 @@ pub fn transpile(
                         current_out_var, clean_id, input_var_name
                     ));
                 }
-                LayerType::GRU {
-                    dim_in,
-                    dim_hidden,
-                    n_hidden,
-                } => {
-                    has_gru = true;
+                LayerType::GruCell { dim_in, dim_out } => {
+                    // 1. Initialize the nnx cell
                     init_lines.push(format!(
-                        "self.layer_{} = GRU(dim_in={}, n_hidden={}, dim_hidden={}, rngs=rngs)",
-                        clean_id, dim_in, n_hidden, dim_hidden
+                        "self.gru_cell_{} = nnx.GRUCell({}, {}, rngs=rngs)",
+                        clean_id, dim_in, dim_out
                     ));
+
+                    // 2. Generate the self-contained scan block
                     call_blocks.push(format!(
                         r#"
-        # --- GRU Layer {0} ---
-        carry_{0} = self.layer_{0}.initialize_carry({1}.shape[0], rngs)
-        {2} = self.layer_{0}(carry_{0}, {1})
+        # --- GRU Cell {0} ---
+        # 1. Transpose input to (Sequence, Batch, Features) for scanning
+        seq_in_{0} = jnp.transpose({1}, (1, 0, 2))
+        
+        batch_size_{0} = {1}.shape[0]
+        carry_{0} = jnp.zeros((batch_size_{0}, {2}), dtype=jnp.float32)
+        
+        def step_{0}(carry, x):
+            new_carry, y = self.gru_cell_{0}(carry, x)
+            return new_carry, y
+
+        final_carry_{0}, seq_out_{0} = jax.lax.scan(step_{0}, carry_{0}, seq_in_{0})
+
+        {3} = jnp.transpose(seq_out_{0}, (1, 0, 2))
         # ---------------------"#,
-                        clean_id, input_var_name, current_out_var
+                        clean_id, input_var_name, dim_out, current_out_var
                     ));
                 }
+
                 LayerType::Concat { axis } => {
                     if parent_vars.is_empty() {
                         return Err(anyhow::anyhow!(
@@ -156,17 +163,7 @@ pub fn transpile(
         last_output_var = current_out_var;
     }
 
-    // 4. Fallback Return
-    if !has_explicit_return {
-        call_blocks.push(format!("return {}", last_output_var));
-    }
-
-    // 5. Inject Helper Classes
-    if has_gru {
-        let gru_code = tera.render("gru_module", &tera::Context::new())?;
-        extra_classes.push_str(&gru_code);
-        extra_classes.push_str("\n\n");
-    }
+    call_blocks.push(format!("return {}", last_output_var));
 
     // 6. Render Final Template
     let context = MainContext {

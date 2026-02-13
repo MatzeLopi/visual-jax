@@ -1,3 +1,5 @@
+use tower::Layer;
+
 use crate::engine::types::{ActivationType, LayerType, NodeKind};
 use std::collections::HashMap;
 
@@ -38,26 +40,17 @@ impl ShapeValidator for LayerType {
                 Ok(Shape(out_shape))
             }
 
-            LayerType::GRU {
-                dim_in,
-                dim_hidden,
-                n_hidden: _,
-            } => {
+            LayerType::GruCell { dim_in, dim_out } => {
                 match last_dim {
                     Dim::Fixed(val) if val != dim_in => {
                         return Err(format!(
-                            "Shape mismatch! Incoming connection has dimension {}, but GRU layer expects dim_in={}",
+                            "Shape mismatch! Incoming connection has dimension {}, but GRU Cell layer expects dim_in={}",
                             val, dim_in
                         ));
                     }
                     _ => {}
                 }
-
-                let mut out_shape = input_shape.clone();
-                let last_idx = out_shape.len() - 1;
-                out_shape[last_idx] = Dim::Fixed(*dim_hidden);
-
-                Ok(Shape(out_shape))
+                Ok(Shape(vec![Dim::Batch, Dim::Fixed(*dim_out)]))
             }
 
             LayerType::Concat { axis } => {
