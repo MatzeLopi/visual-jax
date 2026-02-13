@@ -14,10 +14,6 @@ export default function PropertiesPanel({ selectedNode, onChange }: any) {
     const kindKey = Object.keys(selectedNode.data.kind)[0]; // "Layer", "Input", or "Activation"
     const details = selectedNode.data.kind[kindKey];
 
-    // If it's a simple enum (like Relu), details might just be the string "Relu" or an object
-    // Based on your payload, Activation is usually { "Relu": null } or similar, 
-    // but let's assume the Drag payload structure: { type: 'Dense', config: {...} }
-
     // Helper to update nested config
     const handleConfigChange = (key: string, val: any) => {
         const newConfig = { ...details.config, [key]: isNaN(Number(val)) ? val : Number(val) };

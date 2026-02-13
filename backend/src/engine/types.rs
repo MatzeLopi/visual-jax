@@ -9,6 +9,7 @@ pub enum InputType {
         file_path: String,
         features: Vec<String>,
         target: String,
+        dim_out: isize,
     },
 }
 
@@ -16,18 +17,24 @@ pub enum InputType {
 #[serde(tag = "type", content = "config")]
 pub enum LayerType {
     Dense {
-        dim_in: usize,
-        dim_out: usize,
+        dim_in: isize,
+        dim_out: isize,
     },
     GRU {
-        dim_in: usize,
-        dim_hidden: usize,
-        n_hidden: usize,
+        dim_in: isize,
+        dim_hidden: isize,
+        n_hidden: isize,
     },
+    Concat {
+        axis: isize,
+    },
+    Add,
+    Flatten,
     Custom {
         code: String,
     },
 }
+
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(tag = "type", content = "config")]
 
@@ -69,8 +76,4 @@ pub enum NodeKind {
     Input(InputType),
     Layer(LayerType),
     Activation(ActivationType),
-    Output {
-        loss: LossType,
-        metrics: Vec<MetricType>,
-    },
 }

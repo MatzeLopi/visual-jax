@@ -38,47 +38,25 @@ pub fn transpile(
         let current_out_var = format!("out_{}", clean_id);
 
         // --- A. Resolve Inputs ---
-        // Who connects to me?
         let parents = incoming_map.get(&id).cloned().unwrap_or_default();
 
-        let input_var_name = if parents.is_empty() {
-            // No parents = Model Input
-            "x".to_string()
-        } else if parents.len() == 1 {
-            // Single parent = Direct connection
-            var_map
-                .get(&parents[0])
-                .ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "Compilation Error: Parent node {} not processed before child {}.",
-                        parents[0],
-                        id
-                    )
-                })?
-                .clone()
-        } else {
-            // Multiple parents = Concatenate
-            // Collect all parent variable names
-            let mut parent_vars = Vec::new();
-            for p in &parents {
-                let var = var_map.get(p).ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "Compilation Error: Parent node {} missing for merge at {}.",
-                        p,
-                        id
-                    )
-                })?;
-                parent_vars.push(var.clone());
-            }
+        // Collect all parent Python variable names
+        let mut parent_vars = Vec::new();
+        for p in &parents {
+            let var = var_map.get(p).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Compilation Error: Parent node {} not processed before child {}.",
+                    p,
+                    id
+                )
+            })?;
+            parent_vars.push(var.clone());
+        }
 
-            // Generate concatenation code
-            let concat_var = format!("concat_{}", clean_id);
-            call_blocks.push(format!(
-                "{} = jnp.concatenate([{}], axis=-1) # Merge branches",
-                concat_var,
-                parent_vars.join(", ")
-            ));
-            concat_var
+        let input_var_name = if parent_vars.is_empty() {
+            "x".to_string()
+        } else {
+            parent_vars[0].clone()
         };
 
         // --- B. Generate Node Logic ---
@@ -108,7 +86,6 @@ pub fn transpile(
                         "self.layer_{} = GRU(dim_in={}, n_hidden={}, dim_hidden={}, rngs=rngs)",
                         clean_id, dim_in, n_hidden, dim_hidden
                     ));
-                    // GRU requires explicit carry handling
                     call_blocks.push(format!(
                         r#"
         # --- GRU Layer {0} ---
@@ -118,8 +95,41 @@ pub fn transpile(
                         clean_id, input_var_name, current_out_var
                     ));
                 }
+                LayerType::Concat { axis } => {
+                    if parent_vars.is_empty() {
+                        return Err(anyhow::anyhow!(
+                            "Concat node {} requires at least 1 input",
+                            id
+                        ));
+                    }
+                    call_blocks.push(format!(
+                        "{} = jnp.concatenate([{}], axis={}) # Explicit Concat",
+                        current_out_var,
+                        parent_vars.join(", "),
+                        axis
+                    ));
+                }
+                LayerType::Add => {
+                    if parent_vars.len() < 2 {
+                        return Err(anyhow::anyhow!(
+                            "Add node {} requires at least 2 inputs",
+                            id
+                        ));
+                    }
+                    call_blocks.push(format!(
+                        "{} = {} # Explicit Element-wise Addition",
+                        current_out_var,
+                        parent_vars.join(" + ")
+                    ));
+                }
+                LayerType::Flatten => {
+                    // Standard JAX flattening: Keeps batch dim, flattens the rest
+                    call_blocks.push(format!(
+                        "{} = {}.reshape(({}.shape[0], -1)) # Explicit Flatten",
+                        current_out_var, input_var_name, input_var_name
+                    ));
+                }
                 LayerType::Custom { code } => {
-                    // Placeholder for custom code injection
                     call_blocks.push(format!(
                         "# Custom Layer {}\n{} = ... ",
                         clean_id, current_out_var
@@ -139,12 +149,6 @@ pub fn transpile(
                     current_out_var, func, input_var_name
                 ));
             }
-            NodeKind::Output { .. } => {
-                // If we reach an Output node, return the input immediately
-                call_blocks.push(format!("return {}", input_var_name));
-                has_explicit_return = true;
-                continue; // Skip registering this node since we returned
-            }
         }
 
         // --- C. Register Output ---
@@ -153,7 +157,6 @@ pub fn transpile(
     }
 
     // 4. Fallback Return
-    // If the graph didn't contain an explicit 'Output' node, return the last calculated variable.
     if !has_explicit_return {
         call_blocks.push(format!("return {}", last_output_var));
     }

@@ -3,6 +3,7 @@ use crate::engine::{
     graph::GraphProcessor,
     transpiler,
     types::{ActivationType, InputType, LayerType, LossType, MetricType, OptimizerType},
+    validator,
 };
 use crate::http::{AppState, error::Error as HTTPError};
 use crate::schemas::graph::NeuralGraph;
@@ -74,7 +75,10 @@ async fn compile_graph(
 
     let incoming_map = processor.get_incoming_map();
 
-    // PASS IT
+    // Check code
+    validator::validate_graph(&sorted_nodes, &incoming_map)
+        .map_err(|e| HTTPError::InternalServerError(e.to_string()))?;
+
     let python_code = transpiler::transpile(sorted_nodes, incoming_map)
         .map_err(|e| HTTPError::InternalServerError(e.to_string()))?;
 
