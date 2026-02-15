@@ -2,15 +2,27 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+fn default_seq_len() -> usize {
+    1
+}
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", content = "config")]
 pub enum InputType {
     Tabular {
         file_path: String,
         features: Vec<String>,
-        target: String,
-        dim_out: isize,
+        targets: Vec<String>,
+        #[serde(default = "default_seq_len")]
+        sequence_length: usize,
     },
+}
+
+impl InputType {
+    pub fn dim_out(&self) -> usize {
+        match self {
+            InputType::Tabular { targets, .. } => targets.len(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]

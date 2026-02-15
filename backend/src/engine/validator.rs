@@ -1,5 +1,3 @@
-use tower::Layer;
-
 use crate::engine::types::{ActivationType, LayerType, NodeKind};
 use std::collections::HashMap;
 
@@ -19,7 +17,12 @@ pub trait ShapeValidator {
 
 impl ShapeValidator for LayerType {
     fn validate_and_propagate(&self, input_shapes: &[Shape]) -> Result<Shape, String> {
-        let input_shape = &input_shapes[0].0;
+        let input_shape_wrapper = input_shapes
+            .first()
+            .ok_or_else(|| "Layer has no input connections.".to_string())?;
+
+        let input_shape = &input_shape_wrapper.0;
+
         let last_dim = input_shape.last().ok_or("Input shape cannot be empty")?;
 
         match self {
@@ -77,7 +80,6 @@ impl ShapeValidator for LayerType {
                 for (i, shape) in input_shapes.iter().enumerate() {
                     let current_shape = &shape.0;
 
-                    // 1. Check rank
                     if current_shape.len() != base_shape.len() {
                         return Err(format!(
                             "Rank mismatch in Concat! Input 0 has {} dims, but Input {} has {} dims",
@@ -203,15 +205,12 @@ pub fn validate_graph(
         }
 
         let output_shape = match kind {
-            // FIX: Cast to usize AND prepend the Batch dimension!
             NodeKind::Input(input_data) => match input_data {
-                crate::engine::types::InputType::Tabular {
-                    features, dim_out, ..
-                } => {
+                crate::engine::types::InputType::Tabular { features, .. } => {
                     let feature_count = if !features.is_empty() {
                         features.len() as isize
                     } else {
-                        *dim_out as isize
+                        0 as isize
                     };
 
                     Shape(vec![Dim::Batch, Dim::Fixed(feature_count)])
@@ -225,8 +224,6 @@ pub fn validate_graph(
                 node_input_shapes[0].clone()
             }
         };
-
-        // 3. Store the result so the next node can use it
         shape_env.insert(id.clone(), output_shape);
     }
 

@@ -1,5 +1,5 @@
 use crate::engine::types::{ActivationType, LayerType, NodeKind};
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde::Serialize;
 use std::collections::HashMap;
 use tera::Tera;
@@ -84,21 +84,15 @@ pub fn transpile(
                     call_blocks.push(format!(
                         r#"
         # --- GRU Cell {0} ---
-        # 1. Transpose input to (Sequence, Batch, Features) for scanning
         seq_in_{0} = jnp.transpose({1}, (1, 0, 2))
-        
-        batch_size_{0} = {1}.shape[0]
-        carry_{0} = jnp.zeros((batch_size_{0}, {2}), dtype=jnp.float32)
-        
+        carry_{0} = self.gru_cell_{0}.initialize_carry(seq_in_{0}.shape[1:], rngs=self.rngs)
         def step_{0}(carry, x):
             new_carry, y = self.gru_cell_{0}(carry, x)
             return new_carry, y
-
         final_carry_{0}, seq_out_{0} = jax.lax.scan(step_{0}, carry_{0}, seq_in_{0})
-
-        {3} = jnp.transpose(seq_out_{0}, (1, 0, 2))
+        {2} = jnp.transpose(seq_out_{0}, (1, 0, 2))
         # ---------------------"#,
-                        clean_id, input_var_name, dim_out, current_out_var
+                        clean_id, input_var_name, current_out_var
                     ));
                 }
 
@@ -136,10 +130,11 @@ pub fn transpile(
                         current_out_var, input_var_name, input_var_name
                     ));
                 }
+                // TODO: Correctly implement custon layers by injecting the code and replacing input/output variable names
                 LayerType::Custom { code } => {
                     call_blocks.push(format!(
-                        "# Custom Layer {}\n{} = ... ",
-                        clean_id, current_out_var
+                        "# Custom Layer {}\n{} = {}\n",
+                        clean_id, current_out_var, code
                     ));
                 }
             },

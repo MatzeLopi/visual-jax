@@ -1,0 +1,49 @@
+import polars as pl
+import jax
+import jax.numpy as jnp
+
+class DataLoader:
+    def __init__(self, batch_size, rng_key):
+        self.batch_size = batch_size
+        self.rng_key = rng_key
+        
+        df = pl.read_csv("{{ file_path }}")
+        
+        features = {{ features | json_encode() }}
+        targets = {{ targets | json_encode() }} 
+        seq_len = {{ sequence_length }}
+
+        self.X_flat = df.select(features).to_jax(return_type='array')
+        
+        self.y_flat = df.select(targets).to_jax(return_type='array')
+
+
+        total_rows = self.X_flat.shape[0]
+        if total_rows % seq_len != 0:
+             raise ValueError(f"Rows ({total_rows}) not divisible by sequence length ({seq_len})")
+
+        num_samples = total_rows // seq_len
+        num_features = self.X_flat.shape[1]
+
+        if len(self.y_flat.shape) == 1:
+            self.y_flat = self.y_flat.reshape(-1, 1)
+        
+        num_targets = self.y_flat.shape[1]
+
+        self.X = self.X_flat.reshape((num_samples, seq_len, num_features))
+        self.y = self.y_flat.reshape((num_samples, seq_len, num_targets))
+
+        self.num_samples = num_samples
+        self.steps_per_epoch = self.num_samples // self.batch_size
+
+    def __iter__(self):
+        self.rng_key, subkey = jax.random.split(self.rng_key)
+        perm = jax.random.permutation(subkey, self.num_samples)
+        
+        X_shuffled = self.X[perm]
+        y_shuffled = self.y[perm]
+
+        for i in range(self.steps_per_epoch):
+            start = i * self.batch_size
+            end = start + self.batch_size
+            yield X_shuffled[start:end], y_shuffled[start:end]

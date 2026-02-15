@@ -85,4 +85,5 @@ fn create_router(shared_state: &Arc<AppState>) -> Router {
         .merge(routers::auth::router(shared_state.clone())) // Add auth router
         .merge(routers::user::router(shared_state.clone())) // Add user router
         .merge(routers::compiler::router(shared_state.clone()))
+        .merge(routers::datasets::router(shared_state.clone())) // Add file router
 }
