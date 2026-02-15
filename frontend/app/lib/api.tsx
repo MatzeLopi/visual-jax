@@ -18,13 +18,15 @@ const getCookie = (name: string) => {
 
 api.interceptors.request.use((config) => {
     if (['post', 'put', 'delete', 'patch'].includes(config.method?.toLowerCase() || '')) {
-
         const csrfToken = getCookie('x_csft');
-
         if (csrfToken) {
             config.headers['x_csft'] = csrfToken;
         }
     }
+    if (config.data instanceof FormData) {
+        config.headers['Content-Type'] = undefined;
+    }
+
     return config;
 });
 

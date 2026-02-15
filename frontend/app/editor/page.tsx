@@ -56,29 +56,19 @@ function EditorContent() {
         const kindKey = Object.keys(kind)[0];
         const details = kind[kindKey];
 
-        // 1. Explicit Output: Does this node define a size? (e.g., Dense, GRU)
         if (details.config) {
             const outKey = Object.keys(details.config).find(k => OUTPUT_KEYS.includes(k));
             if (outKey) {
                 return Number(details.config[outKey]);
             }
         }
-
-        // 2. Tabular Input Special Case
         if (kindKey === 'Input' && details.config && Array.isArray(details.config.features)) {
             return details.config.features.length || null;
         }
-
-        // 3. Pass-Through / Activation: Look backwards!
-        // If we are here, this node (e.g. ReLU) has no size config. 
-        // We assume it passes through the dimension of its parent.
-
-        // Find the edge connecting TO this node
         const incomingEdge = allEdges.find(e => e.target === node.id);
         if (incomingEdge) {
             const parentNode = allNodes.find(n => n.id === incomingEdge.source);
             if (parentNode) {
-                // RECURSION: Ask the parent what IT outputs
                 return getOutputDimension(parentNode, allNodes, allEdges, visited);
             }
         }
@@ -88,17 +78,12 @@ function EditorContent() {
 
     const onConnect = useCallback(
         (params: Connection) => {
-            // 1. Apply the visual edge immediately
             setEdges((eds) => addEdge({ ...params, animated: true, style: { stroke: '#000' } }, eds));
 
             const sourceNode = nodes.find((n) => n.id === params.source);
             const targetNode = nodes.find((n) => n.id === params.target);
 
             if (sourceNode && targetNode) {
-                // PASS NODES AND EDGES HERE
-                // Note: We use 'edges' from state, which doesn't include the NEW edge yet if we act immediately.
-                // However, for "Source -> Target", we only care about what feeds INTO Source.
-                // If Source is ReLU, it must already be connected to something for this to work.
                 const outputDim = getOutputDimension(sourceNode, nodes, edges);
 
                 if (outputDim !== null && outputDim > 0) {
