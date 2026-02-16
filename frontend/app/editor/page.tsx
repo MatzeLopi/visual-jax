@@ -18,6 +18,10 @@ import '@xyflow/react/dist/style.css';
 import api from '../lib/api';
 import Sidebar from '../components/Sidebar';
 import PropertiesPanel from '../components/PropertiesPanel';
+import { useAuth } from '../context/AuthContext';
+import SaveModelModal from '../components/SaveModelModal';
+import LoadModelModal, { Model } from '../components/LoadModelModal';
+import { Save, FolderOpen, Play } from 'lucide-react';
 
 let id = 0;
 const getId = () => `node_${id++}`;
@@ -32,6 +36,7 @@ export default function Editor() {
 
 function EditorContent() {
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
+    const { user } = useAuth();
 
     // Nodes & Edges State
     const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -40,6 +45,10 @@ function EditorContent() {
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
     const [compiledCode, setCompiledCode] = useState("// Output will appear here...");
     const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
+
+    const [isSaveOpen, setIsSaveOpen] = useState(false);
+    const [isLoadOpen, setIsLoadOpen] = useState(false);
+    const [currentModel, setCurrentModel] = useState<Model | null>(null);
 
     // Helper to determine what size a node outputs
     const OUTPUT_KEYS = ['dim_out', 'dim_hidden', 'out_features', 'units', 'output_size'];
@@ -182,6 +191,18 @@ function EditorContent() {
     };
 
     const handleCompile = async () => {
+        // Compiling should save the model if we have a current model
+        if (currentModel) {
+            await handleSaveConfirm(currentModel.name, currentModel.is_public);
+        } else {
+            // If no model, we should probably just prompt to save first?
+            // Or just compile without saving if user didn't ask to save.
+            // But requirement said "Compiling should save the model".
+            // So we trigger save modal.
+            setIsSaveOpen(true);
+            return;
+        }
+
         const payload = {
             nodes: nodes.map(n => ({ id: n.id, kind: n.data.kind, position: n.position })),
             edges: edges.map(e => ({ id: e.id, source: e.source, target: e.target }))
@@ -196,6 +217,41 @@ function EditorContent() {
         }
     };
 
+    const handleSaveConfirm = async (name: string, isPublic: boolean) => {
+        const payload = {
+            name,
+            is_public: isPublic,
+            graph_json: { nodes, edges }
+        };
+        try {
+            const res = await api.post('/models', payload);
+            setCurrentModel(res.data);
+        } catch (error) {
+            console.error("Failed to save model", error);
+            throw error;
+        }
+    };
+
+    const handleLoadConfirm = (model: Model) => {
+        const graph = model.graph_json;
+        if (graph && Array.isArray(graph.nodes) && Array.isArray(graph.edges)) {
+            setNodes(graph.nodes);
+            setEdges(graph.edges);
+            setTimeout(() => reactFlowInstance?.fitView({ duration: 800 }), 100);
+
+            let maxId = 0;
+            graph.nodes.forEach((n: any) => {
+                const parts = n.id.split('_');
+                if (parts.length === 2 && !isNaN(parseInt(parts[1]))) {
+                    const num = parseInt(parts[1]);
+                    if (num >= maxId) maxId = num + 1;
+                }
+            });
+            id = maxId;
+            setCurrentModel(model);
+        }
+    };
+
     return (
         <div className="h-screen flex flex-col bg-white text-gray-900 font-sans">
             {/* Header */}
@@ -206,12 +262,30 @@ function EditorContent() {
                     </div>
                     <h1 className="font-bold text-sm tracking-tight text-gray-900">Visual JAX <span className="text-gray-400 font-normal">/ Editor</span></h1>
                 </div>
-                <button
-                    onClick={handleCompile}
-                    className="bg-black text-white px-5 py-1.5 rounded-md text-xs font-medium hover:bg-gray-800 transition-all shadow-sm"
-                >
-                    Compile Graph
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setIsLoadOpen(true)}
+                        className="bg-white border border-gray-200 text-gray-700 px-3 py-1.5 rounded-md text-xs font-medium hover:bg-gray-50 transition-all flex items-center gap-2"
+                    >
+                        <FolderOpen size={14} />
+                        Load
+                    </button>
+                    <button
+                        onClick={() => setIsSaveOpen(true)}
+                        className="bg-white border border-gray-200 text-gray-700 px-3 py-1.5 rounded-md text-xs font-medium hover:bg-gray-50 transition-all flex items-center gap-2"
+                    >
+                        <Save size={14} />
+                        Save
+                    </button>
+                    <div className="h-4 w-px bg-gray-200 mx-1"></div>
+                    <button
+                        onClick={handleCompile}
+                        className="bg-black text-white px-5 py-1.5 rounded-md text-xs font-medium hover:bg-gray-800 transition-all shadow-sm flex items-center gap-2"
+                    >
+                        <Play size={14} />
+                        Compile Graph
+                    </button>
+                </div>
             </div>
 
             <div className="flex-1 flex overflow-hidden">
@@ -254,6 +328,19 @@ function EditorContent() {
                     </div>
                 </div>
             </div>
+
+            <SaveModelModal
+                isOpen={isSaveOpen}
+                onClose={() => setIsSaveOpen(false)}
+                onSave={handleSaveConfirm}
+                isLoggedIn={!!user}
+            />
+
+            <LoadModelModal
+                isOpen={isLoadOpen}
+                onClose={() => setIsLoadOpen(false)}
+                onLoad={handleLoadConfirm}
+            />
         </div>
     );
 }

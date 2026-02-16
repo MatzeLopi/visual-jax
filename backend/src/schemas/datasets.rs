@@ -7,4 +7,6 @@ pub struct Dataset {
     pub name: String,
     pub file_path: String,
     pub created_at: time::OffsetDateTime,
+    pub version: i32,
+    pub is_public: bool,
 }
