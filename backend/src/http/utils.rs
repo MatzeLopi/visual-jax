@@ -88,3 +88,22 @@ pub async fn send_mail(to: &str, subject: &str, html: &str, state: &AppState) ->
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_random_string_length() {
+        let len = 10;
+        let s = random_string(len);
+        assert_eq!(s.len(), len);
+    }
+
+    #[test]
+    fn test_random_string_randomness() {
+        let s1 = random_string(10);
+        let s2 = random_string(10);
+        assert_ne!(s1, s2);
+    }
+}

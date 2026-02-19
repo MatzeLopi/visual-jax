@@ -80,7 +80,7 @@ pub async fn serve(config: Config, db: PgPool, smtp_pool: Pool<SmtpManager>) -> 
 }
 
 // Create Router
-fn create_router(shared_state: &Arc<AppState>) -> Router {
+pub fn create_router(shared_state: &Arc<AppState>) -> Router {
     Router::new()
         .merge(routers::auth::router(shared_state.clone())) // Add auth router
         .merge(routers::user::router(shared_state.clone())) // Add user router
