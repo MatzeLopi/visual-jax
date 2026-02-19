@@ -12,12 +12,13 @@ import {
     ReactFlowProvider,
     Node,
     Edge,
-    ReactFlowInstance
+    useReactFlow
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import api from '../lib/api';
 import Sidebar from '../components/Sidebar';
 import PropertiesPanel from '../components/PropertiesPanel';
+import { getOutputDimension, INPUT_KEYS } from '../lib/graphUtils';
 
 let id = 0;
 const getId = () => `node_${id++}`;
@@ -32,6 +33,7 @@ export default function Editor() {
 
 function EditorContent() {
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
+    const { getNodes, getEdges, screenToFlowPosition } = useReactFlow();
 
     // Nodes & Edges State
     const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -39,52 +41,23 @@ function EditorContent() {
 
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
     const [compiledCode, setCompiledCode] = useState("// Output will appear here...");
-    const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
 
-    // Helper to determine what size a node outputs
-    const OUTPUT_KEYS = ['dim_out', 'dim_hidden', 'out_features', 'units', 'output_size'];
-
-    // Now accepts all nodes and edges to perform recursive lookups
-    const getOutputDimension = (node: Node, allNodes: Node[], allEdges: Edge[], visited = new Set<string>()): number | null => {
-        if (!node || !node.data || !node.data.kind) return null;
-
-        // Prevent infinite loops (cycles)
-        if (visited.has(node.id)) return null;
-        visited.add(node.id);
-
-        const kind: any = node.data.kind;
-        const kindKey = Object.keys(kind)[0];
-        const details = kind[kindKey];
-
-        if (details.config) {
-            const outKey = Object.keys(details.config).find(k => OUTPUT_KEYS.includes(k));
-            if (outKey) {
-                return Number(details.config[outKey]);
-            }
-        }
-        if (kindKey === 'Input' && details.config && Array.isArray(details.config.features)) {
-            return details.config.features.length || null;
-        }
-        const incomingEdge = allEdges.find(e => e.target === node.id);
-        if (incomingEdge) {
-            const parentNode = allNodes.find(n => n.id === incomingEdge.source);
-            if (parentNode) {
-                return getOutputDimension(parentNode, allNodes, allEdges, visited);
-            }
-        }
-
-        return null;
-    };
+    // We don't need to store the instance anymore since we use useReactFlow
+    // const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
 
     const onConnect = useCallback(
         (params: Connection) => {
             setEdges((eds) => addEdge({ ...params, animated: true, style: { stroke: '#000' } }, eds));
 
-            const sourceNode = nodes.find((n) => n.id === params.source);
-            const targetNode = nodes.find((n) => n.id === params.target);
+            // Use getNodes and getEdges to access current state without dependency
+            const currentNodes = getNodes();
+            const currentEdges = getEdges();
+
+            const sourceNode = currentNodes.find((n) => n.id === params.source);
+            const targetNode = currentNodes.find((n) => n.id === params.target);
 
             if (sourceNode && targetNode) {
-                const outputDim = getOutputDimension(sourceNode, nodes, edges);
+                const outputDim = getOutputDimension(sourceNode, currentNodes, currentEdges);
 
                 if (outputDim !== null && outputDim > 0) {
                     setNodes((nds) => nds.map((node) => {
@@ -95,7 +68,6 @@ function EditorContent() {
 
                             if (details.config) {
                                 // Generic Input Key Search
-                                const INPUT_KEYS = ['dim_in', 'in_features', 'input_size'];
                                 const inKey = Object.keys(details.config).find(k => INPUT_KEYS.includes(k));
 
                                 if (inKey) {
@@ -109,7 +81,7 @@ function EditorContent() {
                 }
             }
         },
-        [nodes, edges, setEdges, setNodes] // Added 'edges' to dependencies
+        [getNodes, getEdges, setEdges, setNodes]
     );
 
     const onDragOver = useCallback((event: DragEvent) => {
@@ -120,7 +92,8 @@ function EditorContent() {
     const onDrop = useCallback(
         (event: DragEvent) => {
             event.preventDefault();
-            if (!reactFlowWrapper.current || !reactFlowInstance) return;
+            // if (!reactFlowWrapper.current || !reactFlowInstance) return;
+            // We use screenToFlowPosition from hook, checking wrapper ref is good practice but not strictly required for hook if provider is up
 
             const type = event.dataTransfer.getData('application/reactflow');
             const configStr = event.dataTransfer.getData('application/config');
@@ -128,7 +101,7 @@ function EditorContent() {
             if (typeof type === 'undefined' || !type) return;
 
             const configData = JSON.parse(configStr);
-            const position = reactFlowInstance.screenToFlowPosition({ x: event.clientX, y: event.clientY });
+            const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
 
             const kindPayload = { [type]: configData };
 
@@ -149,14 +122,14 @@ function EditorContent() {
 
             setNodes((nds) => nds.concat(newNode));
         },
-        [reactFlowInstance, setNodes]
+        [screenToFlowPosition, setNodes]
     );
 
     const onNodeClick = (_: React.MouseEvent, node: Node) => {
         setSelectedNode(node);
     };
 
-    // --- NEW: Handle Deletion ---
+    // --- Handle Deletion ---
     const handleDeleteNode = (nodeId: string) => {
         setNodes((nds) => nds.filter((n) => n.id !== nodeId));
         setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
@@ -166,7 +139,7 @@ function EditorContent() {
     // Also clear selection if user clicks on empty canvas
     const onPaneClick = () => setSelectedNode(null);
 
-    const handleUpdateNode = (nodeId: string, newKind: any) => {
+    const handleUpdateNode = (nodeId: string, newKind: Record<string, any>) => {
         setNodes((nds) => nds.map((node) => {
             if (node.id === nodeId) {
                 const innerKey = Object.keys(newKind)[0];
@@ -190,8 +163,8 @@ function EditorContent() {
         try {
             const res = await api.post('/compiler/compile', payload);
             setCompiledCode(res.data.code);
-        } catch (err: any) {
-            const msg = err.response?.data?.error || err.message || "Unknown Error";
+        } catch (err: unknown) {
+            const msg = (err as any).response?.data?.error || (err as Error).message || "Unknown Error";
             setCompiledCode(`Error: ${msg}`);
         }
     };
@@ -224,7 +197,7 @@ function EditorContent() {
                         onNodesChange={onNodesChange}
                         onEdgesChange={onEdgesChange}
                         onConnect={onConnect}
-                        onInit={setReactFlowInstance}
+                        // onInit={setReactFlowInstance} // Removed
                         onDrop={onDrop}
                         onDragOver={onDragOver}
                         onNodeClick={onNodeClick}
