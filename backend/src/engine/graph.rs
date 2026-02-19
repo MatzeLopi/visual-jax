@@ -42,12 +42,10 @@ impl GraphProcessor {
     }
 
     pub fn validate_and_sort(&self) -> Result<Vec<(String, NodeKind)>> {
-        // Topological Sort (Checks for cycles automatically)
         let sorted_indices = toposort(&self.graph, None).map_err(|_| {
             anyhow!("Graph contains a cycle! Neural Networks must be acyclic (DAG).")
         })?;
 
-        // Map back to NodeKind
         let sorted_nodes = sorted_indices
             .into_iter()
             .map(|idx| {
@@ -64,7 +62,6 @@ impl GraphProcessor {
         let mut incoming_map = HashMap::new();
 
         for (node_id, node_idx) in &self.node_map {
-            // Find all incoming edges to this node
             let parents: Vec<String> = self
                 .graph
                 .neighbors_directed(*node_idx, petgraph::Direction::Incoming)
