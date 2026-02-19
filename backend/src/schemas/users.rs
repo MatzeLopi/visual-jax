@@ -38,3 +38,17 @@ pub struct UpdatePassword {
     pub old_password: String,
     pub new_password: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_user_default() {
+        let user = User::default();
+        assert_eq!(user.id, Uuid::nil());
+        assert_eq!(user.username, "");
+        assert_eq!(user.email, "");
+        assert!(!user.verified);
+    }
+}

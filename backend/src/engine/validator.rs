@@ -179,6 +179,9 @@ impl ShapeValidator for LayerType {
 
 impl ShapeValidator for ActivationType {
     fn validate_and_propagate(&self, input_shapes: &[Shape]) -> Result<Shape, String> {
+        if input_shapes.is_empty() {
+            return Err("Activation layer has no inputs".to_string());
+        }
         Ok(input_shapes[0].clone())
     }
 }
@@ -217,15 +220,57 @@ pub fn validate_graph(
                 }
             },
             NodeKind::Layer(layer) => layer.validate_and_propagate(&node_input_shapes)?,
-            NodeKind::Activation(_) => {
-                if node_input_shapes.is_empty() {
-                    return Err(format!("Activation node {} has no inputs", id));
-                }
-                node_input_shapes[0].clone()
-            }
+            NodeKind::Activation(act) => act.validate_and_propagate(&node_input_shapes)?,
         };
         shape_env.insert(id.clone(), output_shape);
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::engine::types::LayerType;
+
+    #[test]
+    fn test_dense_validation() {
+        let layer = LayerType::Dense {
+            dim_in: 10,
+            dim_out: 20,
+        };
+        let input_shape = Shape(vec![Dim::Batch, Dim::Fixed(10)]);
+        let output = layer.validate_and_propagate(&[input_shape]).unwrap();
+        assert_eq!(output, Shape(vec![Dim::Batch, Dim::Fixed(20)]));
+    }
+
+    #[test]
+    fn test_dense_validation_mismatch() {
+        let layer = LayerType::Dense {
+            dim_in: 10,
+            dim_out: 20,
+        };
+        let input_shape = Shape(vec![Dim::Batch, Dim::Fixed(5)]);
+        let output = layer.validate_and_propagate(&[input_shape]);
+        assert!(output.is_err());
+    }
+
+    #[test]
+    fn test_concat_validation() {
+        let layer = LayerType::Concat { axis: 1 };
+        let input1 = Shape(vec![Dim::Batch, Dim::Fixed(10)]);
+        let input2 = Shape(vec![Dim::Batch, Dim::Fixed(5)]);
+        let output = layer
+            .validate_and_propagate(&[input1, input2])
+            .unwrap();
+        assert_eq!(output, Shape(vec![Dim::Batch, Dim::Fixed(15)]));
+    }
+
+    #[test]
+    fn test_flatten_validation() {
+        let layer = LayerType::Flatten;
+        let input = Shape(vec![Dim::Batch, Dim::Fixed(10), Dim::Fixed(5)]);
+        let output = layer.validate_and_propagate(&[input]).unwrap();
+        assert_eq!(output, Shape(vec![Dim::Batch, Dim::Fixed(50)]));
+    }
 }
