@@ -4,7 +4,7 @@
 
 - Start the full development stack: `docker compose up`
 - Services map to: Next.js (`:3000`), Rust Axum API (`:8080`), PostgreSQL (`:5432`).
-- Do NOT modify the `docker-compose.yaml` volume mounts or the `WATCHPACK_POLLING=true` environment variable. They are strictly required for Next.js hot-reloading inside the container.
+- Do NOT modify the `docker-compose.yaml`.
 
 ## Architecture Boundaries & Conventions
 
