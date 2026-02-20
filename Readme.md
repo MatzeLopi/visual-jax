@@ -6,24 +6,21 @@ This tool bridges the gap between visual prototyping and high-performance resear
 
 ## 🐳 Quickstart (Docker)
 
-The easiest way to run Visual-JAX locally is using Docker Compose. This will automatically spin up the PostgreSQL database, build the frontend, compile the Rust backend, and serve the entire application.
+The easiest way to run Visual-JAX is via our pre-built Docker containers. 
 
-1. Clone the repository:
+Simply download the production compose file and start it up:
 
-   ```bash
-   git clone [https://github.com/matzelopi/visual-jax.git](https://github.com/matzelopi/visual-jax.git)
-   cd visual-jax
-    ```
+1. Download docker-compose.yaml
 
-2. Start the application:
+2. Run the following command in the folder where the docker compose is located
 
     ```bash
-    docker-compose up --build
+    docker compose up -d
+
     ```
 
-3. Open your browser and navigate to `http://localhost:8080`.
-
-*Note: The Next.js frontend is statically exported during the Docker build process and served directly by the Rust Axum backend.*
+3. You successfully started the application!
+Open your browser and navigate to `http://localhost:8080` to start testing it!
 
 ## 🏗 Architecture
 
@@ -61,6 +58,7 @@ The system is built on a strict separation of concerns:
 * **Images:** Not implemented yet
 
 * **JAX Optimization:** Automatically handles `jit` compilation and `vmap` logic in the generated code.
+
 
 ## 🛠 Tech Stack
 
