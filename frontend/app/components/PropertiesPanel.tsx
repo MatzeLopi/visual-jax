@@ -1,21 +1,17 @@
 import React from 'react';
+import { Node } from '@xyflow/react';
 import InputProperties, { InputConfig } from './InputProperties';
 
-// Define types for cleaner code
+// Keep this to define the shape we expect
 interface NodeData {
     kind: Record<string, any>;
     label: string;
     [key: string]: any;
 }
 
-interface SelectedNode {
-    id: string;
-    data: NodeData;
-    [key: string]: any;
-}
-
 interface Props {
-    selectedNode: SelectedNode | null;
+    // 1. Accept the generic Node just like Editor.tsx defines it
+    selectedNode: Node | null;
     onChange: (nodeId: string, newKind: Record<string, any>) => void;
     onDelete: (nodeId: string) => void;
 }
@@ -31,8 +27,12 @@ export default function PropertiesPanel({ selectedNode, onChange, onDelete }: Pr
         );
     }
 
-    const kindKey = Object.keys(selectedNode.data.kind)[0];
-    const details = selectedNode.data.kind[kindKey];
+    // 2. Cast the generic data to your specific NodeData shape
+    const data = selectedNode.data as unknown as NodeData;
+
+    // 3. Use `data` instead of `selectedNode.data` from here on out
+    const kindKey = Object.keys(data.kind)[0];
+    const details = data.kind[kindKey];
     const config = details.config || {};
 
     // --- 1. SPECIAL HANDLER: INPUT NODES ---
