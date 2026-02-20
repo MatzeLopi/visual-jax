@@ -18,7 +18,9 @@ import '@xyflow/react/dist/style.css';
 import api from '../lib/api';
 import Sidebar from '../components/Sidebar';
 import PropertiesPanel from '../components/PropertiesPanel';
+import TrainingConfig from '../components/TrainingConfig';
 import { getOutputDimension, INPUT_KEYS } from '../lib/graphUtils';
+import { TrainParams } from '../types';
 
 let id = 0;
 const getId = () => `node_${id++}`;
@@ -41,6 +43,13 @@ function EditorContent() {
 
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
     const [compiledCode, setCompiledCode] = useState("// Output will appear here...");
+    const [isTrainingModalOpen, setIsTrainingModalOpen] = useState(false);
+    const [trainParams, setTrainParams] = useState<TrainParams>({
+        loss: { type: '' },
+        metrics: [],
+        epochs: 10,
+        batchsize: 32
+    });
 
     // We don't need to store the instance anymore since we use useReactFlow
     // const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
@@ -154,15 +163,19 @@ function EditorContent() {
         setSelectedNode((prev) => prev && prev.id === nodeId ? { ...prev, data: { ...prev.data, kind: newKind } } : prev);
     };
 
-    const handleCompile = async () => {
+    const handleTrain = async () => {
         const payload = {
-            nodes: nodes.map(n => ({ id: n.id, kind: n.data.kind, position: n.position })),
-            edges: edges.map(e => ({ id: e.id, source: e.source, target: e.target }))
+            graph: {
+                nodes: nodes.map(n => ({ id: n.id, kind: n.data.kind, position: n.position })),
+                edges: edges.map(e => ({ id: e.id, source: e.source, target: e.target }))
+            },
+            params: trainParams
         };
 
         try {
             const res = await api.post('/compiler/compile', payload);
             setCompiledCode(res.data.code);
+            setIsTrainingModalOpen(false);
         } catch (err: unknown) {
             const msg = (err as any).response?.data?.error || (err as Error).message || "Unknown Error";
             setCompiledCode(`Error: ${msg}`);
@@ -180,14 +193,22 @@ function EditorContent() {
                     <h1 className="font-bold text-sm tracking-tight text-gray-900">Visual JAX <span className="text-gray-400 font-normal">/ Editor</span></h1>
                 </div>
                 <button
-                    onClick={handleCompile}
+                    onClick={() => setIsTrainingModalOpen(true)}
                     className="bg-black text-white px-5 py-1.5 rounded-md text-xs font-medium hover:bg-gray-800 transition-all shadow-sm"
                 >
-                    Compile Graph
+                    Train Model
                 </button>
             </div>
 
             <div className="flex-1 flex overflow-hidden">
+                {isTrainingModalOpen && (
+                    <TrainingConfig
+                        params={trainParams}
+                        onChange={setTrainParams}
+                        onClose={() => setIsTrainingModalOpen(false)}
+                        onStart={handleTrain}
+                    />
+                )}
                 <Sidebar />
 
                 <div className="flex-1 relative bg-[#F9FAFB] h-full shadow-inner" ref={reactFlowWrapper}>

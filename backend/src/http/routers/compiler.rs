@@ -2,11 +2,11 @@
 use crate::engine::{
     graph::GraphProcessor,
     transpiler,
-    types::{ActivationType, InputType, LayerType, LossType, MetricType, NodeKind, OptimizerType},
+    types::{ActivationType, InputType, LayerType, NodeKind, OptimizerType},
     validator,
 };
 use crate::http::{AppState, error::Error as HTTPError};
-use crate::schemas::graph::NeuralGraph;
+use crate::schemas::training::TrainRequestPayload;
 use axum::{
     extract::{Json, State},
     http::StatusCode,
@@ -54,21 +54,21 @@ async fn get_optimizer_types() -> Result<impl IntoResponse, HTTPError> {
 
 async fn get_loss_types() -> Result<impl IntoResponse, HTTPError> {
     log::debug!("Fetching loss types");
-    let loss_types = schema_for!(LossType);
+    let loss_types = vec!["MeanAbsoluteError", "CrossEntropy"];
     Ok((StatusCode::OK, Json(loss_types)))
 }
 
 async fn get_metric_types() -> Result<impl IntoResponse, HTTPError> {
     log::debug!("Fetching metric types");
-    let metric_types = schema_for!(MetricType);
+    let metric_types = vec!["Accuracy", "MeanAbsoluteError"];
     Ok((StatusCode::OK, Json(metric_types)))
 }
 
 async fn compile_graph(
     State(state): State<Arc<AppState>>,
-    Json(graph): Json<NeuralGraph>,
+    Json(payload): Json<TrainRequestPayload>,
 ) -> Result<impl axum::response::IntoResponse, HTTPError> {
-    let processor = GraphProcessor::new(graph);
+    let processor = GraphProcessor::new(payload.graph);
 
     let sorted_nodes = processor
         .validate_and_sort()
@@ -82,17 +82,22 @@ async fn compile_graph(
 
     let (_, node_kind) = sorted_nodes.first().unwrap();
 
-    // TODO: get batch size
     let dataloader_code = match node_kind {
-        NodeKind::Input(input_node) => {
-            transpiler::transpile_dataloader(input_node, 32, &state.tera_engine)
-        }
+        NodeKind::Input(input_node) => transpiler::transpile_dataloader(
+            input_node,
+            payload.params.batchsize,
+            &state.tera_engine,
+        ),
 
         _ => Err(anyhow::anyhow!("First node must be Input Node")),
     }?;
 
     let python_code = transpiler::transpile_model(sorted_nodes, incoming_map, &state.tera_engine)
         .map_err(|e| HTTPError::InternalServerError(e.to_string()))?;
-    let code = dataloader_code + &python_code;
+
+    let training_code = transpiler::transpile_training(payload.params, &state.tera_engine)
+        .map_err(|e| HTTPError::InternalServerError(e.to_string()))?;
+
+    let code = format!("{}\n{}\n{}", dataloader_code, python_code, training_code);
     Ok((StatusCode::OK, Json(serde_json::json!({ "code": code }))))
 }
