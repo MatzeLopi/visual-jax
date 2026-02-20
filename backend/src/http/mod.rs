@@ -6,8 +6,8 @@ use axum::http::header::HeaderValue;
 use deadpool::managed::Pool;
 use http::{Method, header};
 use sqlx::PgPool;
-use std::sync::Arc;
-use tower_http::cors::CorsLayer;
+use std::{path, sync::Arc};
+use tower_http::{cors::CorsLayer, services::ServeDir};
 
 mod dependencies;
 pub mod error;
@@ -81,9 +81,17 @@ pub async fn serve(config: Config, db: PgPool, smtp_pool: Pool<SmtpManager>) -> 
 
 // Create Router
 pub fn create_router(shared_state: &Arc<AppState>) -> Router {
+    let dir = path::Path::new("./static");
+
+    if !dir.exists() {
+        panic!("Static files not found")
+    }
+    let static_dir = ServeDir::new(dir);
+
     Router::new()
         .merge(routers::auth::router(shared_state.clone())) // Add auth router
         .merge(routers::user::router(shared_state.clone())) // Add user router
         .merge(routers::compiler::router(shared_state.clone()))
         .merge(routers::datasets::router(shared_state.clone())) // Add file router
+        .fallback_service(static_dir)
 }

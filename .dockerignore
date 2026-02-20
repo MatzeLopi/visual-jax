@@ -3,7 +3,7 @@ Dockerfile
 .dockerignore
 
 # Dependencies
-node_modules
+**/node_modules/
 npm-debug.log
 yarn-debug.log
 yarn-error.log
@@ -13,6 +13,9 @@ pnpm-debug.log
 .next
 out
 build
+
+# Rust build output
+**/target/
 
 # Environment variables (Prevents hardcoding secrets into the image)
 .env
@@ -25,3 +28,8 @@ build
 
 # Vercel/Deployment specific
 .vercel
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp

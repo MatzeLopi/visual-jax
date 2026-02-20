@@ -19,7 +19,7 @@ services:
 
   backend:
     build: 
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     container_name: visual_jax_backend
     restart: always
@@ -30,22 +30,6 @@ services:
         condition: service_healthy
     env_file:
       - .env
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: visual_jax_frontend
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
-    environment:
-      - WATCHPACK_POLLING=true
-    depends_on:
-      - backend
 
 volumes:
   pgdata:
