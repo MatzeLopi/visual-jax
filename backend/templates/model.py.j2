@@ -1,11 +1,5 @@
 ##########################################################
 #                                                        #
-#      Additional Code needed for layers etc...          #
-#                                                        #
-##########################################################
-{{ extra_classes | safe }}
-##########################################################
-#                                                        #
 #                   Model Code                           #
 #                                                        #
 ##########################################################
@@ -13,9 +7,6 @@ import jax
 import jax.numpy as jnp
 from flax import nnx
 import optax
-
-# Global RNGs for the model (can be overridden during training/inference)
-rngs = nnx.Rngs(jax.random.PRNGKey(0))
 
 class GeneratedModel(nnx.Module):
     def __init__(self, rngs: nnx.Rngs):

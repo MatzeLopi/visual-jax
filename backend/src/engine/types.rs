@@ -5,6 +5,11 @@ use serde::{Deserialize, Serialize};
 fn default_seq_len() -> usize {
     1
 }
+
+fn default_sep() -> String {
+    ";".to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", content = "config")]
 pub enum InputType {
@@ -14,6 +19,8 @@ pub enum InputType {
         targets: Vec<String>,
         #[serde(default = "default_seq_len")]
         sequence_length: usize,
+        #[serde(default = "default_sep")]
+        separator: String,
     },
 }
 
@@ -50,7 +57,7 @@ pub enum ActivationType {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(tag = "type", content = "config")]
 pub enum LossType {
-    MSE,
+    MeanAbsoluteError,
     CrossEntropy,
     Custom { code: String },
 }
@@ -59,10 +66,7 @@ pub enum LossType {
 #[serde(tag = "type", content = "config")]
 pub enum MetricType {
     Accuracy,
-    Precision,
-    Recall,
-    F1Score,
-    Custom { code: String },
+    MeanAbsoluteError,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]

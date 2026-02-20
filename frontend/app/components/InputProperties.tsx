@@ -19,6 +19,7 @@ export interface InputConfig {
     file_path?: string;
     dim_out?: number;
     [key: string]: any;
+    separator?: string;
 }
 
 interface InputProps {
@@ -40,6 +41,7 @@ export default function InputProperties({ nodeId, config, onConfigChange, onDele
         ? config.targets
         : (config.target ? [config.target] : []);
     const seqLen: number = config.sequence_length || 1;
+    const sep: string = config.separatpr || ";";
 
     // 1. Fetch Datasets on Mount
     useEffect(() => {
@@ -110,7 +112,8 @@ export default function InputProperties({ nodeId, config, onConfigChange, onDele
                 features: [],
                 targets: [],
                 target: undefined, // Clear legacy
-                sequence_length: 1
+                sequence_length: 1,
+                separator: ";"
             });
 
         } catch (error) {
@@ -343,6 +346,26 @@ export default function InputProperties({ nodeId, config, onConfigChange, onDele
                     <p className="text-[10px] text-gray-400 mt-1 leading-tight">
                         <strong>1</strong> = Standard Tabular.<br />
                         <strong>&gt;1</strong> = Time Series (Rows per sample).
+                    </p>
+                </div>
+
+                {/* 4. Separator Config (Always Visible) */}
+                <div className="pt-4 border-t border-gray-100">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-2">
+                        Separator in CSV file
+                    </label>
+                    <input
+                        type="string"
+                        min=";"
+                        value={sep}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            onConfigChange({ ...config, separator: val });
+                        }}
+                        className="w-full text-xs border border-gray-300 rounded p-1.5 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1 leading-tight">
+                        <strong>;</strong> = Standard<br />
                     </p>
                 </div>
             </div>

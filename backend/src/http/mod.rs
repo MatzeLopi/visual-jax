@@ -7,6 +7,7 @@ use deadpool::managed::Pool;
 use http::{Method, header};
 use sqlx::PgPool;
 use std::{path, sync::Arc};
+use tera::Tera;
 use tower_http::{cors::CorsLayer, services::ServeDir};
 
 mod dependencies;
@@ -35,14 +36,21 @@ pub struct AppState {
     pub config: Arc<Config>,
     pub db: PgPool,
     pub smtp_pool: Arc<Pool<SmtpManager>>,
+    pub tera_engine: Arc<Tera>,
 }
 
-pub async fn serve(config: Config, db: PgPool, smtp_pool: Pool<SmtpManager>) -> anyhow::Result<()> {
+pub async fn serve(
+    config: Config,
+    db: PgPool,
+    smtp_pool: Pool<SmtpManager>,
+    tera: Tera,
+) -> anyhow::Result<()> {
     // Create shared state
     let shared_state = Arc::new(AppState {
         config: Arc::new(config),
         db,
         smtp_pool: Arc::new(smtp_pool),
+        tera_engine: Arc::new(tera),
     });
 
     let origin = "http://localhost:3000".parse::<HeaderValue>().unwrap();

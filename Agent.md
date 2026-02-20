@@ -3,7 +3,7 @@
 ## Setup Commands
 
 - Start the full development stack: `docker compose up`
-- Services map to: Next.js (`:3000`), Rust Axum API (`:8080`), PostgreSQL (`:5432`).
+- Services map to: Rust Axum API (`:8080`), PostgreSQL (`:5432`).
 - Do NOT modify the `docker-compose.yaml`.
 
 ## Architecture Boundaries & Conventions

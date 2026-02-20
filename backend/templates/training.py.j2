@@ -1,0 +1,58 @@
+import json
+import jax
+import jax.numpy as jnp
+from flax import nnx
+import optax
+
+EPOCHS = {{ epochs }}
+BATCH_SIZE = {{ batch_size }}
+
+key = jax.random.PRNGKey(0)
+rngs = nnx.Rngs(key)
+
+data = DataLoader(BATCH_SIZE, key)
+model = GeneratedModel(rngs)
+optimizer = nnx.Optimizer(model, optax.adam(0.001))
+
+@nnx.jit
+def train_step(model, optimizer, x, y):
+    def loss_fn(model):
+        preds = model(x)
+    
+        {{ loss_calculation_code | safe }}
+        
+        return loss, preds
+
+    (loss, preds), grads = nnx.value_and_grad(loss_fn, has_aux=True)(model)    
+    optimizer.update(grads)
+    
+    metrics_dict = {"loss": float(loss)}
+    
+    {% for calc in metric_calcs %}
+        {{ calc | safe }}
+    {% endfor %}
+    
+    {% for assign in metric_assigns %}
+        {{ assign | safe }}
+    {% endfor %}
+
+    return metrics_dict
+
+for epoch in range(EPOCHS):
+    epoch_metrics = {}
+    batches = 0
+    
+    for x, y in data:
+        step_metrics = train_step(model, optimizer, x, y)
+        
+        for k, v in step_metrics.items():
+            epoch_metrics[k] = epoch_metrics.get(k, 0.0) + float(v)
+        batches += 1
+
+    final_metrics = {"epoch": epoch + 1}
+    for k, v in epoch_metrics.items():
+        final_metrics[k] = v / batches if batches > 0 else 0.0
+        
+    print(json.dumps(final_metrics), flush=True)
+
+print(json.dumps({"status": "completed"}), flush=True)

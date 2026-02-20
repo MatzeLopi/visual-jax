@@ -4,6 +4,11 @@ A high-performance, node-based graphical interface for building, compiling, and 
 
 This tool bridges the gap between visual prototyping and high-performance research code. It allows users to design network architectures visually using **React Flow**, which are then compiled by a type-safe **Rust** backend into optimized **Python/JAX** code.
 
+Currently only the graph generation is implemented.
+I am working on the data loading logic, as well as on the training loops.
+
+Hyperparameter Optimization is also planed, but lets see when this comes along...
+
 ## 🐳 Quickstart (Docker)
 
 The easiest way to run Visual-JAX is via our pre-built Docker containers. 
@@ -55,7 +60,6 @@ The system is built on a strict separation of concerns:
 * **Dynamic Schema Loading:** The Frontend UI is generated dynamically from Rust Structs. Adding a new Layer type in Rust automatically updates the UI.
 * **Smart Data Loading:**
 * **Tabular:** Uses Polars for high-speed CSV/Parquet loading.
-* **Images:** Not implemented yet
 
 * **JAX Optimization:** Automatically handles `jit` compilation and `vmap` logic in the generated code.
 

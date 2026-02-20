@@ -2,13 +2,13 @@
 use crate::engine::{
     graph::GraphProcessor,
     transpiler,
-    types::{ActivationType, InputType, LayerType, LossType, MetricType, OptimizerType},
+    types::{ActivationType, InputType, LayerType, LossType, MetricType, NodeKind, OptimizerType},
     validator,
 };
 use crate::http::{AppState, error::Error as HTTPError};
 use crate::schemas::graph::NeuralGraph;
 use axum::{
-    extract::Json,
+    extract::{Json, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{Router, get, post},
@@ -65,6 +65,7 @@ async fn get_metric_types() -> Result<impl IntoResponse, HTTPError> {
 }
 
 async fn compile_graph(
+    State(state): State<Arc<AppState>>,
     Json(graph): Json<NeuralGraph>,
 ) -> Result<impl axum::response::IntoResponse, HTTPError> {
     let processor = GraphProcessor::new(graph);
@@ -79,11 +80,19 @@ async fn compile_graph(
     validator::validate_graph(&sorted_nodes, &incoming_map)
         .map_err(|e| HTTPError::InternalServerError(e.to_string()))?;
 
-    let python_code = transpiler::transpile(sorted_nodes, incoming_map)
-        .map_err(|e| HTTPError::InternalServerError(e.to_string()))?;
+    let (_, node_kind) = sorted_nodes.first().unwrap();
 
-    Ok((
-        StatusCode::OK,
-        Json(serde_json::json!({ "code": python_code })),
-    ))
+    // TODO: get batch size
+    let dataloader_code = match node_kind {
+        NodeKind::Input(input_node) => {
+            transpiler::transpile_dataloader(input_node, 32, &state.tera_engine)
+        }
+
+        _ => Err(anyhow::anyhow!("First node must be Input Node")),
+    }?;
+
+    let python_code = transpiler::transpile_model(sorted_nodes, incoming_map, &state.tera_engine)
+        .map_err(|e| HTTPError::InternalServerError(e.to_string()))?;
+    let code = dataloader_code + &python_code;
+    Ok((StatusCode::OK, Json(serde_json::json!({ "code": code }))))
 }

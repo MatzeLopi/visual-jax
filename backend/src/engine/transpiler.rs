@@ -1,29 +1,35 @@
-use crate::engine::types::{ActivationType, LayerType, NodeKind};
+use crate::engine::types::{ActivationType, InputType, LayerType, LossType, MetricType, NodeKind};
+use crate::schemas::training::TrainParams;
 use anyhow::Result;
 use serde::Serialize;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 use tera::Tera;
 
 // Define the data structure passed to the Jinja2 template
 #[derive(Serialize)]
-struct MainContext {
-    extra_classes: String,
+struct ModelContext {
     init_lines: Vec<String>,
     call_blocks: Vec<String>,
 }
 
-pub fn transpile(
+#[derive(Serialize)]
+struct DataLoaderContext {
+    file_path: String,
+    features: Vec<String>,
+    targets: Vec<String>,
+    batch_size: usize,
+    sequence_length: usize,
+    separator: String,
+}
+
+pub fn transpile_model(
     sorted_nodes: Vec<(String, NodeKind)>,
     incoming_map: HashMap<String, Vec<String>>,
+    tera: &Arc<Tera>,
 ) -> Result<String> {
-    // 1. Initialize Template Engine
-    let mut tera = Tera::default();
-    tera.add_raw_template("model.py", include_str!("../../templates/model.py.j2"))?;
-
     // 2. State Tracking
     let mut init_lines = Vec::new();
     let mut call_blocks = Vec::new();
-    let mut extra_classes = String::new();
 
     // Flags & tables
     let mut var_map: HashMap<String, String> = HashMap::new(); // Maps NodeID -> Python Var Name
@@ -161,11 +167,89 @@ pub fn transpile(
     call_blocks.push(format!("return {}", last_output_var));
 
     // 6. Render Final Template
-    let context = MainContext {
-        extra_classes,
+    let context = ModelContext {
         init_lines,
         call_blocks,
     };
 
-    Ok(tera.render("model.py", &tera::Context::from_serialize(&context)?)?)
+    Ok(tera.render("model.py.j2", &tera::Context::from_serialize(&context)?)?)
+}
+
+pub fn transpile_dataloader(
+    input: &InputType,
+    batch_size: usize,
+    tera: &Arc<Tera>,
+) -> Result<String> {
+    let context = match input {
+        InputType::Tabular {
+            file_path,
+            features,
+            targets,
+            sequence_length,
+            separator,
+        } => DataLoaderContext {
+            file_path: file_path.clone(),
+            features: features.clone(),
+            targets: targets.clone(),
+            batch_size,
+            sequence_length: *sequence_length,
+            separator: separator.to_owned(),
+        },
+
+        // For future me
+        _ => {
+            return Err(anyhow::anyhow!(
+                "Input type not supported for dataloader generation"
+            ));
+        }
+    };
+
+    let code = tera.render(
+        "dataloader.py.j2",
+        &tera::Context::from_serialize(&context)?,
+    )?;
+
+    Ok(code)
+}
+
+pub fn transpile_training(params: TrainParams, tera: &Arc<Tera>) -> Result<String> {
+    let mut context = tera::Context::new();
+
+    context.insert("epochs", &params.epochs);
+    context.insert("batch_size", &params.batchsize);
+
+    let loss_code = match &params.loss {
+        LossType::MeanAbsoluteError => "loss = jnp.mean((preds - y) ** 2)".to_string(),
+        LossType::CrossEntropy => {
+            "loss = optax.softmax_cross_entropy(logits=preds, labels=y).mean()".to_string()
+        }
+        LossType::Custom { code } => code.to_owned(),
+    };
+    context.insert("loss_calculation_code", &loss_code);
+
+    let mut metric_calcs = Vec::new();
+    let mut metric_assigns = Vec::new();
+
+    if let Some(metrics) = &params.metrics {
+        for metric in metrics {
+            match metric {
+                MetricType::Accuracy => {
+                    // The calculation
+                    metric_calcs.push("acc = jnp.mean(jnp.argmax(preds, axis=-1) == jnp.argmax(batch_y, axis=-1))".to_string());
+                    // The assignment
+                    metric_assigns.push("metrics_dict['accuracy'] = float(acc)".to_string());
+                }
+                MetricType::MeanAbsoluteError => {
+                    metric_calcs.push("mae = jnp.mean(jnp.abs(preds - batch_y))".to_string());
+                    metric_assigns.push("metrics_dict['mae'] = float(mae)".to_string());
+                }
+            }
+        }
+    }
+
+    context.insert("metric_calcs", &metric_calcs);
+    context.insert("metric_assigns", &metric_assigns);
+
+    let code = tera.render("training.py.j2", &context)?;
+    Ok(code)
 }

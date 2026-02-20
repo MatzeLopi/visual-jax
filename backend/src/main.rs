@@ -4,6 +4,7 @@ use deadpool::managed::Pool;
 use rust_backend::http;
 use rust_backend::{SmtpManager, config::Config};
 use sqlx::postgres::PgPoolOptions;
+use tera::Tera;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -43,8 +44,13 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("could not run migrations")?;
 
+    // Create Tera engine
+    let tera_context = Tera::new("templates/**/*").unwrap();
+
     // Start Server
-    http::serve(config, db, smtp_pool).await.unwrap();
+    http::serve(config, db, smtp_pool, tera_context)
+        .await
+        .unwrap();
 
     Ok(())
 }

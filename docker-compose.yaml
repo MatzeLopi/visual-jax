@@ -26,8 +26,15 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    env_file:
-      - .env
+    environment:
+      DATABASE_URL: postgres://postgres:password@db:5432/visual_jax
+      HMAC_KEY: key         # Ignore
+      MAIL_SENDER: SOME     # Ignore
+      MAIL_FROM: SOME       # Ignore
+      MAIL_HOST: SOME       # Ignore
+      MAIL_PORT: 502        # Ignore
+      MAIL_USERNAME: SOME   # Ignore
+      MAIL_PASSWORD: SOME   # Ignore
 
 volumes:
   pgdata:
