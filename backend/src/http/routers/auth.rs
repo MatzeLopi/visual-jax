@@ -1,9 +1,10 @@
 // Router for auth and csrf token generation
 use crate::{
     http::{
+        AppState,
         dependencies::{self, OptionalAuthUser},
         error::Error as HTTPError,
-        utils, AppState,
+        utils,
     },
     schemas::users::UserLogin,
 };
@@ -14,7 +15,7 @@ use axum::{
     extract::{Json, State},
     http::StatusCode,
     response::IntoResponse,
-    routing::{get, post, Router},
+    routing::{Router, get, post},
 };
 use serde_json::json;
 use std::sync::Arc;

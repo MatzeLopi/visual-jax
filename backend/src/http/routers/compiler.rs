@@ -13,8 +13,11 @@ use axum::{
     response::IntoResponse,
     routing::{Router, get, post},
 };
+use log::debug;
 use schemars::schema_for;
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
+use tokio::fs::create_dir_all;
+use uuid::Uuid;
 
 pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
@@ -99,5 +102,19 @@ async fn compile_graph(
         .map_err(|e| HTTPError::InternalServerError(e.to_string()))?;
 
     let code = format!("{}\n{}\n{}", dataloader_code, python_code, training_code);
+
+    let uid = Uuid::new_v4();
+    let file_name = format!("./files/models/{uid}.py");
+    create_dir_all("./files/models/").await.map_err(|e| {
+        debug!("Create Dir all in compiler router failed with: {:?}", e);
+        HTTPError::InternalServerError(format!("An error ocured when saving the model file. {e} "))
+    })?;
+    let p = Path::new(&file_name);
+    // Temp, remove clone in future, when return to frontend is not done anymore
+    tokio::fs::write(p, code.clone()).await.map_err(|e| {
+        debug!("File write in compiler router failed with {:?}", e);
+        HTTPError::InternalServerError(format!("An error ocured when saving the model file. {e} "))
+    })?;
+
     Ok((StatusCode::OK, Json(serde_json::json!({ "code": code }))))
 }

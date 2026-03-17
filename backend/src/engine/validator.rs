@@ -260,9 +260,7 @@ mod tests {
         let layer = LayerType::Concat { axis: 1 };
         let input1 = Shape(vec![Dim::Batch, Dim::Fixed(10)]);
         let input2 = Shape(vec![Dim::Batch, Dim::Fixed(5)]);
-        let output = layer
-            .validate_and_propagate(&[input1, input2])
-            .unwrap();
+        let output = layer.validate_and_propagate(&[input1, input2]).unwrap();
         assert_eq!(output, Shape(vec![Dim::Batch, Dim::Fixed(15)]));
     }
 

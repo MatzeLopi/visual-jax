@@ -47,6 +47,8 @@ async fn main() -> anyhow::Result<()> {
     // Create Tera engine
     let tera_context = Tera::new("templates/**/*").unwrap();
 
+    // Create some dirs needed
+
     // Start Server
     http::serve(config, db, smtp_pool, tera_context)
         .await
