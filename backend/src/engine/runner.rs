@@ -12,8 +12,8 @@ impl Runner {
         Runner { code }
     }
 
-    pub async fn run(file: String) -> Result<(), HTTPError> {
-        let mut child = process::Command::new("python ")
+    pub async fn run(self) -> Result<(), HTTPError> {
+        let mut child = process::Command::new("python")
             .arg(file)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

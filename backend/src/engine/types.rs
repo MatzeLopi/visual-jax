@@ -40,7 +40,6 @@ pub enum LayerType {
     GruCell { dim_in: isize, dim_out: isize },
     Add,
     Flatten,
-    Custom { code: String },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
@@ -51,7 +50,6 @@ pub enum ActivationType {
     Sigmoid,
     Tanh,
     LeakyRelu { alpha: f32 },
-    Custom { code: String },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
@@ -59,7 +57,6 @@ pub enum ActivationType {
 pub enum LossType {
     MeanAbsoluteError,
     CrossEntropy,
-    Custom { code: String },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
@@ -73,7 +70,6 @@ pub enum MetricType {
 pub enum OptimizerType {
     Adam { learning_rate: f32 },
     SGD { learning_rate: f32, momentum: f32 },
-    Custom { code: String },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

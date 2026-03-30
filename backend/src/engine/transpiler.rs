@@ -136,13 +136,6 @@ pub fn transpile_model(
                         current_out_var, input_var_name, input_var_name
                     ));
                 }
-                // TODO: Correctly implement custon layers by injecting the code and replacing input/output variable names
-                LayerType::Custom { code } => {
-                    call_blocks.push(format!(
-                        "# Custom Layer {}\n{} = {}\n",
-                        clean_id, current_out_var, code
-                    ));
-                }
             },
             NodeKind::Activation(act_type) => {
                 let func = match act_type {
@@ -150,7 +143,6 @@ pub fn transpile_model(
                     ActivationType::Sigmoid => "nnx.sigmoid",
                     ActivationType::Tanh => "nnx.tanh",
                     ActivationType::LeakyRelu { .. } => "nnx.leaky_relu",
-                    ActivationType::Custom { .. } => "custom_act",
                 };
                 call_blocks.push(format!(
                     "{} = {}({})",
@@ -195,13 +187,6 @@ pub fn transpile_dataloader(
             sequence_length: *sequence_length,
             separator: separator.to_owned(),
         },
-
-        // For future me
-        _ => {
-            return Err(anyhow::anyhow!(
-                "Input type not supported for dataloader generation"
-            ));
-        }
     };
 
     let code = tera.render(
@@ -223,7 +208,6 @@ pub fn transpile_training(params: TrainParams, tera: &Arc<Tera>) -> Result<Strin
         LossType::CrossEntropy => {
             "loss = optax.softmax_cross_entropy(logits=preds, labels=y).mean()".to_string()
         }
-        LossType::Custom { code } => code.to_owned(),
     };
     context.insert("loss_calculation_code", &loss_code);
 

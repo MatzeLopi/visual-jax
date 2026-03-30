@@ -165,14 +165,6 @@ impl ShapeValidator for LayerType {
 
                 Ok(Shape(output_shape))
             }
-
-            LayerType::Custom { code: _ } => {
-                let mut out_shape = input_shape.clone();
-                let last_idx = out_shape.len() - 1;
-                out_shape[last_idx] = Dim::Unknown;
-
-                Ok(Shape(out_shape))
-            }
         }
     }
 }
