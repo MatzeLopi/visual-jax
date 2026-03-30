@@ -14,7 +14,7 @@ impl Runner {
 
     pub async fn run(self) -> Result<(), HTTPError> {
         let mut child = process::Command::new("python")
-            .arg(file)
+            .arg(self.code)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
