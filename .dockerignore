@@ -33,3 +33,16 @@ build
 .vscode/
 .idea/
 *.swp
+
+**/*.md
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/__tests__/
+**/docs/
+
+**/.eslintrc*
+**/.prettierrc*
+**/eslint.config.mjs
+
+*.log

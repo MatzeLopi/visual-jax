@@ -1,27 +1,61 @@
-// Runs python subbrocess to execute jax code for training and inference
 use crate::http::error::Error as HTTPError;
-use log::debug;
-use std::process::Stdio;
-use tokio::process;
+use bollard::Docker;
+use bollard::models::HostConfig;
+use bollard::plugin::ContainerCreateBody;
+use bollard::query_parameters::CreateContainerOptionsBuilder;
+use futures::TryFutureExt;
+use log::{debug, error, info};
+use uuid::Uuid;
+
 pub struct Runner {
-    pub code: String,
+    pub uid: Uuid,
 }
 
 impl Runner {
-    pub fn new(code: String) -> Self {
-        Runner { code }
+    pub fn new(uid: Uuid) -> Self {
+        Runner { uid }
     }
 
     pub async fn run(self) -> Result<(), HTTPError> {
-        let mut child = process::Command::new("python")
-            .arg(self.code)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
+        let docker = Docker::connect_with_socket_defaults().map_err(|e| {
+            error!("Fehler bei der Verbindung zum Docker-Daemon: {:?}", e);
+            HTTPError::InternalServerError(format!("Docker connection failed"))
+        })?;
+
+        let container_name = format!("jax_run_{}", self.uid);
+        let script = format!("/app/files/models/{}.py", self.uid);
+
+        let host_config = HostConfig {
+            binds: Some(vec!["models:/app/files/models".to_string()]),
+            ..Default::default()
+        };
+
+        let config = ContainerCreateBody {
+            image: Some("jax-runner".to_string()),
+            cmd: Some(vec!["python".to_string(), script]),
+            host_config: Some(host_config),
+            ..Default::default()
+        };
+
+        let options = CreateContainerOptionsBuilder::new()
+            .name(&container_name)
+            .build();
+
+        let create_response = docker
+            .create_container(Some(options), config)
+            .await
             .map_err(|e| {
-                debug!("Error spawning python process {:?}", e);
-                HTTPError::InternalServerError(format!("Error spawning python process {e}"))
+                error!("Error creating container {:?}", e);
+                HTTPError::InternalServerError("Unable to create container".to_string())
             })?;
+        docker
+            .start_container(&container_name, None)
+            .await
+            .map_err(|e| {
+                error!("Error starting container {:?}", e);
+                HTTPError::InternalServerError("Unable to start container".to_string())
+            })?;
+
         Ok(())
     }
 }

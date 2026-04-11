@@ -35,6 +35,11 @@ services:
       MAIL_PORT: 502        # Ignore
       MAIL_USERNAME: SOME   # Ignore
       MAIL_PASSWORD: SOME   # Ignore
+    volumes:
+      - datasets:/app/uploads
+      - models:/app/files/models
 
 volumes:
   pgdata:
+  datasets:
+  models:

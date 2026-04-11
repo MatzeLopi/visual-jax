@@ -1,6 +1,7 @@
 // Router for compiler related endpoints
 use crate::engine::{
     graph::GraphProcessor,
+    runner::Runner,
     transpiler,
     types::{ActivationType, InputType, LayerType, NodeKind, OptimizerType},
     validator,
@@ -13,10 +14,10 @@ use axum::{
     response::IntoResponse,
     routing::{Router, get, post},
 };
-use log::debug;
+use log::{debug, error, info};
+
 use schemars::schema_for;
 use std::{path::Path, sync::Arc};
-use tokio::fs::create_dir_all;
 use uuid::Uuid;
 
 pub fn router(state: Arc<AppState>) -> Router {
@@ -73,15 +74,18 @@ async fn compile_graph(
 ) -> Result<impl axum::response::IntoResponse, HTTPError> {
     let processor = GraphProcessor::new(payload.graph);
 
-    let sorted_nodes = processor
-        .validate_and_sort()
-        .map_err(|e| HTTPError::BadRequest(e.to_string()))?;
+    let sorted_nodes = processor.validate_and_sort().map_err(|e| {
+        error!("Graph sort failed with: {:?}", e);
+        HTTPError::BadRequest("Graph sort failed".to_string())
+    })?;
 
     let incoming_map = processor.get_incoming_map();
 
     // Check code
-    validator::validate_graph(&sorted_nodes, &incoming_map)
-        .map_err(|e| HTTPError::InternalServerError(e.to_string()))?;
+    validator::validate_graph(&sorted_nodes, &incoming_map).map_err(|e| {
+        error!("Graph sort failed with: {:?}", e);
+        HTTPError::InternalServerError("Graph validation failed".to_string())
+    })?;
 
     let (_, node_kind) = sorted_nodes.first().unwrap();
 
@@ -96,25 +100,37 @@ async fn compile_graph(
     }?;
 
     let python_code = transpiler::transpile_model(sorted_nodes, incoming_map, &state.tera_engine)
-        .map_err(|e| HTTPError::InternalServerError(e.to_string()))?;
+        .map_err(|e| {
+        error!("Model transpile failed {:?}", e);
+        HTTPError::InternalServerError("Model transpile failed".to_string())
+    })?;
 
     let training_code = transpiler::transpile_training(payload.params, &state.tera_engine)
-        .map_err(|e| HTTPError::InternalServerError(e.to_string()))?;
+        .map_err(|e| {
+            error!("Trainer trainspile failed: {:?}", e);
+            HTTPError::InternalServerError("Trainer transpile failed".to_string())
+        })?;
 
     let code = format!("{}\n{}\n{}", dataloader_code, python_code, training_code);
 
     let uid = Uuid::new_v4();
     let file_name = format!("./files/models/{uid}.py");
-    create_dir_all("./files/models/").await.map_err(|e| {
-        debug!("Create Dir all in compiler router failed with: {:?}", e);
-        HTTPError::InternalServerError(format!("An error ocured when saving the model file. {e} "))
-    })?;
+
     let p = Path::new(&file_name);
     // Temp, remove clone in future, when return to frontend is not done anymore
     tokio::fs::write(p, code.clone()).await.map_err(|e| {
         debug!("File write in compiler router failed with {:?}", e);
-        HTTPError::InternalServerError(format!("An error ocured when saving the model file. {e} "))
+        HTTPError::InternalServerError("An error ocured when saving the model file.".to_string())
     })?;
 
-    Ok((StatusCode::OK, Json(serde_json::json!({ "code": code }))))
+    let runner = Runner::new(uid);
+    runner.run().await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "uid": uid.to_string(),
+            "status": "container_started"
+        })),
+    ))
 }
