@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT model_path \n                FROM models \n                WHERE model_id = $1 \n                ORDER BY version_ DESC \n                LIMIT 1\n                ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "model_path",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "35fe204cb4e7b9bf37f0738aa3e9197ed8cf7bb3f3d5962636eb9eb4e94ed06f"
+}

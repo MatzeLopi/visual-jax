@@ -1,28 +1,33 @@
+use crate::crud::models;
 use crate::http::error::Error as HTTPError;
 use bollard::Docker;
 use bollard::models::HostConfig;
 use bollard::plugin::ContainerCreateBody;
 use bollard::query_parameters::CreateContainerOptionsBuilder;
-use futures::TryFutureExt;
 use log::{debug, error, info};
+use sqlx::PgPool;
 use uuid::Uuid;
-
 pub struct Runner {
     pub uid: Uuid,
+    pub path: String,
+    pub name: String,
 }
 
 impl Runner {
-    pub fn new(uid: Uuid) -> Self {
-        Runner { uid }
+    pub async fn new(uid: Uuid, db: &PgPool) -> Result<Self, HTTPError> {
+        Ok(Runner {
+            uid: uid,
+            path: models::get_path(uid, None, db).await?,
+            name: format!("jax_run_{}", uid),
+        })
     }
 
-    pub async fn run(self) -> Result<(), HTTPError> {
+    pub async fn run(self) -> Result<String, HTTPError> {
         let docker = Docker::connect_with_socket_defaults().map_err(|e| {
             error!("Fehler bei der Verbindung zum Docker-Daemon: {:?}", e);
             HTTPError::InternalServerError(format!("Docker connection failed"))
         })?;
 
-        let container_name = format!("jax_run_{}", self.uid);
         let script = format!("/app/files/models/{}.py", self.uid);
 
         let host_config = HostConfig {
@@ -38,7 +43,7 @@ impl Runner {
         };
 
         let options = CreateContainerOptionsBuilder::new()
-            .name(&container_name)
+            .name(&self.name)
             .build();
 
         let create_response = docker
@@ -49,13 +54,13 @@ impl Runner {
                 HTTPError::InternalServerError("Unable to create container".to_string())
             })?;
         docker
-            .start_container(&container_name, None)
+            .start_container(&self.name, None)
             .await
             .map_err(|e| {
                 error!("Error starting container {:?}", e);
                 HTTPError::InternalServerError("Unable to start container".to_string())
             })?;
 
-        Ok(())
+        Ok(self.name)
     }
 }

@@ -113,6 +113,7 @@ async fn compile_graph(
 
     let code = format!("{}\n{}\n{}", dataloader_code, python_code, training_code);
 
+    // TODO: Update this and integrate into DB
     let uid = Uuid::new_v4();
     let file_name = format!("./files/models/{uid}.py");
 
@@ -123,7 +124,7 @@ async fn compile_graph(
         HTTPError::InternalServerError("An error ocured when saving the model file.".to_string())
     })?;
 
-    let runner = Runner::new(uid);
+    let runner = Runner::new(uid, &state.db).await?;
     runner.run().await?;
 
     Ok((

@@ -38,6 +38,7 @@ services:
     volumes:
       - datasets:/app/uploads
       - models:/app/files/models
+      - /var/run/docker.sock:/var/run/docker.sock
 
 volumes:
   pgdata:

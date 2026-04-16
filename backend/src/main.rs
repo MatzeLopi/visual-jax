@@ -8,6 +8,8 @@ use rust_backend::{SmtpManager, config::Config};
 use sqlx::postgres::PgPoolOptions;
 use tera::Tera;
 use tokio::fs::create_dir_all;
+
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Check if .env file exists, init logger, loda config
