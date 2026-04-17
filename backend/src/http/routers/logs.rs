@@ -14,14 +14,14 @@ use log::error;
 use uuid::Uuid;
 pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
-        .route("/logs", get(get_logs))
+        .route("/logs/:uid", get(get_logs))
         .with_state(state)
 }
 
 // TODO: In future make this protected so that only user with correct auth can get the model
 async fn get_logs(
     State(state): State<Arc<AppState>>,
-    uid: String,
+    axum::extract::Path(uid): axum::extract::Path<String>,
 ) -> Result<impl IntoResponse, HTTPError> {
     let uid = Uuid::from_str(&uid).map_err(|e| {
         error!("Could not convert String to Uuid: {:?}", e);

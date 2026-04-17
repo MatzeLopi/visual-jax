@@ -49,7 +49,7 @@ export default function TrainingConfig({ params, onChange, onClose, onStart }: P
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
-                <h2 className="text-lg font-bold mb-4 text-gray-900">Training Configuration</h2>
+                <h2 className="text-lg font-bold mb-4 text-gray-900">Compile Configuration</h2>
 
                 <div className="space-y-4">
                     <div>
@@ -109,7 +109,7 @@ export default function TrainingConfig({ params, onChange, onClose, onStart }: P
 
                 <div className="mt-6 flex justify-end gap-2">
                     <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded border border-gray-300">Cancel</button>
-                    <button onClick={onStart} className="px-4 py-2 text-sm bg-black text-white hover:bg-gray-800 rounded font-medium">Start Training</button>
+                    <button onClick={onStart} className="px-4 py-2 text-sm bg-black text-white hover:bg-gray-800 rounded font-medium">Compile</button>
                 </div>
             </div>
         </div>
