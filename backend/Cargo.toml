@@ -18,6 +18,7 @@ sqlx = { version = "0.8", features = [
     "postgres",
     "uuid",
     "time",
+    "macros",
 ] }
 
 # The `clap` beta gives us a much nicer way to define configuration parameters for our application.

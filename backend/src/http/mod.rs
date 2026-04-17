@@ -101,5 +101,6 @@ pub fn create_router(shared_state: &Arc<AppState>) -> Router {
         .merge(routers::user::router(shared_state.clone())) // Add user router
         .merge(routers::compiler::router(shared_state.clone()))
         .merge(routers::datasets::router(shared_state.clone())) // Add file router
+        .merge(routers::logs::router(shared_state.clone()))
         .fallback_service(static_dir)
 }

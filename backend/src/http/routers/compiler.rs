@@ -31,6 +31,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/compiler/loss-types", get(get_loss_types))
         .route("/compiler/metric-types", get(get_metric_types))
         .route("/compiler/compile", post(compile_graph))
+        .route("/training/start", post(start_training))
         .with_state(state)
 }
 
@@ -74,6 +75,8 @@ async fn compile_graph(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<TrainRequestPayload>,
 ) -> Result<impl axum::response::IntoResponse, HTTPError> {
+    let model = Model::default();
+
     let processor = GraphProcessor::new(payload.graph);
 
     let sorted_nodes = processor.validate_and_sort().map_err(|e| {
@@ -83,7 +86,6 @@ async fn compile_graph(
 
     let incoming_map = processor.get_incoming_map();
 
-    // Check code
     validator::validate_graph(&sorted_nodes, &incoming_map).map_err(|e| {
         error!("Graph sort failed with: {:?}", e);
         HTTPError::InternalServerError("Graph validation failed".to_string())
@@ -114,24 +116,23 @@ async fn compile_graph(
         })?;
 
     let code = format!("{}\n{}\n{}", dataloader_code, python_code, training_code);
-
-    let model = Model::default();
-
-    let p = Path::new(&model.model_path);
-    // Temp, remove clone in future, when return to frontend is not done anymore
-    tokio::fs::write(p, code.clone()).await.map_err(|e| {
+    let p: &Path = Path::new(&model.model_path);
+    tokio::fs::write(p, code).await.map_err(|e| {
         error!("File write in compiler router failed with {:?}", e);
         HTTPError::InternalServerError("An error ocured when saving the model file.".to_string())
     })?;
-
-    let runner = Runner::new(model.clone()).await?;
-    runner.run(&state.db).await?;
-
     Ok((StatusCode::OK, Json(model)))
 }
 
-pub async fn get_logs(
+async fn load_graph() {}
+
+async fn update_model() {}
+
+async fn start_training(
     State(state): State<Arc<AppState>>,
+    Json(model): Json<Model>,
 ) -> Result<impl axum::response::IntoResponse, HTTPError> {
-    Ok(())
+    let runner = Runner::new(model).await?;
+    runner.run(&state.db).await?;
+    Ok(StatusCode::OK)
 }

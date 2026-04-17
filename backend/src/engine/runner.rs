@@ -71,6 +71,7 @@ impl Runner {
             Logs {
                 origin: self.model.model_id,
                 text: "Container started.".to_string(),
+                created_at: None,
             },
             db,
         )
@@ -90,6 +91,7 @@ impl Runner {
                             Logs {
                                 origin: origin_uid,
                                 text: log_text,
+                                created_at: None,
                             },
                             &bg_db,
                         )
@@ -104,6 +106,7 @@ impl Runner {
                 Logs {
                     origin: origin_uid,
                     text: "Container stopped.".to_string(),
+                    created_at: None,
                 },
                 &bg_db,
             )
