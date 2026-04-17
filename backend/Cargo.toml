@@ -35,7 +35,7 @@ tower-http = { version = "0.6", features = ["full"] }
 
 time = { version = "0.3.30", features = ["serde"] }
 
-uuid = { version = "1", features = ["serde", "v4", "fast-rng"] }
+uuid = { version = "1", features = ["serde", "v4", "fast-rng", "v7"] }
 
 # Utility Crates
 anyhow = "1.0.48"

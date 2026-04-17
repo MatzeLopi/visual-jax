@@ -1,13 +1,16 @@
 // Router for compiler related endpoints
-use crate::engine::{
-    graph::GraphProcessor,
-    runner::Runner,
-    transpiler,
-    types::{ActivationType, InputType, LayerType, NodeKind, OptimizerType},
-    validator,
-};
 use crate::http::{AppState, error::Error as HTTPError};
 use crate::schemas::training::TrainRequestPayload;
+use crate::{
+    engine::{
+        graph::GraphProcessor,
+        runner::Runner,
+        transpiler,
+        types::{ActivationType, InputType, LayerType, NodeKind, OptimizerType},
+        validator,
+    },
+    schemas::models::Model,
+};
 use axum::{
     extract::{Json, State},
     http::StatusCode,
@@ -18,7 +21,6 @@ use log::{debug, error, info};
 
 use schemars::schema_for;
 use std::{path::Path, sync::Arc};
-use uuid::Uuid;
 
 pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
@@ -113,25 +115,23 @@ async fn compile_graph(
 
     let code = format!("{}\n{}\n{}", dataloader_code, python_code, training_code);
 
-    // TODO: Update this and integrate into DB
-    let uid = Uuid::new_v4();
-    let file_name = format!("./files/models/{uid}.py");
+    let model = Model::default();
 
-    let p = Path::new(&file_name);
+    let p = Path::new(&model.model_path);
     // Temp, remove clone in future, when return to frontend is not done anymore
     tokio::fs::write(p, code.clone()).await.map_err(|e| {
-        debug!("File write in compiler router failed with {:?}", e);
+        error!("File write in compiler router failed with {:?}", e);
         HTTPError::InternalServerError("An error ocured when saving the model file.".to_string())
     })?;
 
-    let runner = Runner::new(uid, &state.db).await?;
-    runner.run().await?;
+    let runner = Runner::new(model.clone()).await?;
+    runner.run(&state.db).await?;
 
-    Ok((
-        StatusCode::OK,
-        Json(serde_json::json!({
-            "uid": uid.to_string(),
-            "status": "container_started"
-        })),
-    ))
+    Ok((StatusCode::OK, Json(model)))
+}
+
+pub async fn get_logs(
+    State(state): State<Arc<AppState>>,
+) -> Result<impl axum::response::IntoResponse, HTTPError> {
+    Ok(())
 }
