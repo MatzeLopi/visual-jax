@@ -53,7 +53,12 @@ async fn upload_dataset(
 ) -> Result<impl IntoResponse, HTTPError> {
     while let Some(field) = multipart.next_field().await.unwrap() {
         if field.name() == Some("file") {
-            let file_name = field.file_name().unwrap_or("unknown.csv").to_string();
+            let raw_file_name = field.file_name().unwrap_or("unknown.csv");
+            let file_name = Path::new(raw_file_name)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("unknown.csv")
+                .to_string();
             let data = field.bytes().await.unwrap();
 
             let unique_name = format!("{}_{}", Uuid::new_v4(), file_name);
