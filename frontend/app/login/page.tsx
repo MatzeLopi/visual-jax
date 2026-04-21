@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/navigation';
 import api from '../lib/api';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const { login, user } = useAuth();
@@ -137,6 +138,15 @@ export default function LoginPage() {
                 ) : 'Sign in'}
               </button>
             </form>
+          </div>
+
+          <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 text-center sm:px-8">
+            <p className="text-sm text-gray-600">
+              Don't have an account?{' '}
+              <Link href="/register" className="font-semibold text-gray-900 hover:text-gray-700">
+                Sign up
+              </Link>
+            </p>
           </div>
         </div>
 
