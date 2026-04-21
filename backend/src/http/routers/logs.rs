@@ -14,7 +14,7 @@ use log::error;
 use uuid::Uuid;
 pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
-        .route("/logs/:uid", get(get_logs))
+        .route("/logs/{uid}", get(get_logs))
         .with_state(state)
 }
 

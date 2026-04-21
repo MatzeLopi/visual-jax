@@ -14,7 +14,6 @@ import {
     Edge,
     useReactFlow
 } from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
 import api from '../lib/api';
 import Sidebar from '../components/Sidebar';
 import PropertiesPanel from '../components/PropertiesPanel';
@@ -281,11 +280,10 @@ function EditorContent() {
                         <button
                             onClick={handleStartTraining}
                             disabled={!compiledModel || isTraining}
-                            className={`w-full py-2 rounded-md text-sm font-medium transition-all ${
-                                !compiledModel || isTraining
+                            className={`w-full py-2 rounded-md text-sm font-medium transition-all ${!compiledModel || isTraining
                                 ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
                                 : 'bg-green-600 text-white hover:bg-green-700 shadow-sm'
-                            }`}
+                                }`}
                         >
                             {isTraining ? 'Training...' : compiledModel ? 'Start Training' : 'Compile to Train'}
                         </button>
