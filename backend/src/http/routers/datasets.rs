@@ -1,4 +1,6 @@
+use crate::http::{AppState, dependencies::OptionalAuthUser, error::Error as HTTPError};
 use crate::schemas::datasets::Dataset;
+
 use axum::{
     Json, Router,
     extract::{Multipart, Path as PathExtract, State},
@@ -6,13 +8,13 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post},
 };
+use log::error;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::fs;
 use uuid::Uuid;
-// Import OptionalAuthUser instead of AuthUser
-use crate::http::{AppState, dependencies::OptionalAuthUser};
 
+// Import OptionalAuthUser instead of AuthUser
 pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/datasets/upload", post(upload_dataset))
@@ -48,7 +50,7 @@ async fn upload_dataset(
     State(state): State<Arc<AppState>>,
     auth_user: OptionalAuthUser,
     mut multipart: Multipart,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, HTTPError> {
     while let Some(field) = multipart.next_field().await.unwrap() {
         if field.name() == Some("file") {
             let file_name = field.file_name().unwrap_or("unknown.csv").to_string();
@@ -60,7 +62,10 @@ async fn upload_dataset(
             let file_path = Path::new(upload_dir).join(&unique_name);
 
             if let Err(e) = fs::write(&file_path, &data).await {
-                return Json(serde_json::json!({ "error": format!("Failed to save file: {}", e) }));
+                error!("Error when writing upload file: {:?}", e);
+                return Err(HTTPError::InternalServerError(
+                    "File write failed".to_string(),
+                ));
             }
 
             let dataset_id = Uuid::new_v4();
@@ -82,19 +87,22 @@ async fn upload_dataset(
             .await;
 
             return match result {
-                Ok(rec) => Json(serde_json::json!({
+                Ok(rec) => Ok(Json(serde_json::json!({
                     "dataset_id": rec.dataset_id,
                     "name": rec.name,
                     "file_path": rec.file_path,
-                    // return info about visibility
                     "is_public": user_id.is_none()
-                })),
-                Err(e) => Json(serde_json::json!({ "error": format!("Database error: {}", e) })),
+                }))),
+                Err(e) => {
+                    error!("Error with database: {:?}", e);
+                    Err(HTTPError::InternalServerError("Database error".to_string()))
+                }
             };
         }
     }
 
-    Json(serde_json::json!({ "error": "No file found" }))
+    error!("Generic error on file upload");
+    Err(HTTPError::BadRequest("Bad request".to_string()))
 }
 
 async fn download_dataset(

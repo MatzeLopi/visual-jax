@@ -43,6 +43,8 @@ RUN apt-get update && apt-get install -y ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r appuser && useradd -r -g appuser appuser
 
+RUN mkdir -p ./uploads ./files/models && chown -R appuser:appuser /app
+
 COPY --from=backend-builder /app/target/release/rust_backend ./backend_app
 
 COPY --from=backend-builder /app/migrations ./migrations

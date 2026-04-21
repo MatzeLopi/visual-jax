@@ -88,7 +88,13 @@ export default function Dashboard() {
                         </div>
 
                         {/* Mobile Menu Toggle */}
-                        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden text-gray-500">
+                        <button
+                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                            className="md:hidden text-gray-500"
+                            aria-expanded={isMobileMenuOpen}
+                            aria-controls="mobile-menu"
+                            aria-label="Toggle navigation menu"
+                        >
                             {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
                         </button>
                     </div>
@@ -96,7 +102,7 @@ export default function Dashboard() {
 
                 {/* Mobile Dropdown */}
                 {isMobileMenuOpen && (
-                    <div className="md:hidden border-t border-gray-100 bg-white px-4 py-3">
+                    <div id="mobile-menu" className="md:hidden border-t border-gray-100 bg-white px-4 py-3">
                         <div className="mb-3 flex items-center gap-3">
                             <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600">
                                 {user.username?.charAt(0).toUpperCase()}
@@ -162,8 +168,9 @@ export default function Dashboard() {
 
                                     <div className="space-y-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                                            <label htmlFor="old_password" className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
                                             <input
+                                                id="old_password"
                                                 type="password"
                                                 required
                                                 className="block w-full rounded-md border-gray-300 shadow-sm focus:border-gray-900 focus:ring-gray-900 sm:text-sm py-2 px-3 border"
@@ -172,8 +179,9 @@ export default function Dashboard() {
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                                            <label htmlFor="new_password" className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
                                             <input
+                                                id="new_password"
                                                 type="password"
                                                 required
                                                 className="block w-full rounded-md border-gray-300 shadow-sm focus:border-gray-900 focus:ring-gray-900 sm:text-sm py-2 px-3 border"

@@ -4,13 +4,10 @@ version = "0.1.0"
 edition = "2024"
 publish = false
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# Core dependencies: runtime, HTTP framework and database client.
 futures = "0.3"
 tokio = { version = "1", features = ["full"] }
-
 axum = { version = "0.8.1", features = ["tower-log", "multipart"] }
 axum-extra = { version = "0.10.0", features = ["cookie"] }
 sqlx = { version = "0.8", features = [
@@ -20,22 +17,12 @@ sqlx = { version = "0.8", features = [
     "time",
     "macros",
 ] }
-
-# The `clap` beta gives us a much nicer way to define configuration parameters for our application.
 clap = { version = "4.5", features = ["derive", "env"] }
-
 serde = { version = "1", features = ["derive"] }
-
-# State of the art password hashing.
 argon2 = "0.5"
-
-# axum builds on the types in Tower
 tower = "0.5"
 tower-http = { version = "0.6", features = ["full"] }
-
-
 time = { version = "0.3.30", features = ["serde"] }
-
 uuid = { version = "1", features = ["serde", "v4", "fast-rng", "v7"] }
 
 # Utility Crates
