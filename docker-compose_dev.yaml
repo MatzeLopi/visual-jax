@@ -1,0 +1,51 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: visual_jax_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres # For dev
+      POSTGRES_PASSWORD: password # For dev
+      POSTGRES_DB: visual_jax
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d visual_jax"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: visual_jax_backend
+    user: "root"              
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://postgres:password@db:5432/visual_jax
+      RUST_LOG: info,rust_backend=debug
+      HMAC_KEY: key         # Ignore
+      MAIL_SENDER: SOME     # Ignore
+      MAIL_FROM: SOME       # Ignore
+      MAIL_HOST: SOME       # Ignore
+      MAIL_PORT: 502        # Ignore
+      MAIL_USERNAME: SOME   # Ignore
+      MAIL_PASSWORD: SOME   # Ignore
+    volumes:
+      - datasets:/app/uploads
+      - models:/app/files/models
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  pgdata:
+  datasets:
+  models:
+    name: models
