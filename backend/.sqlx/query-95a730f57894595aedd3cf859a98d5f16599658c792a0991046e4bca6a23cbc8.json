@@ -1,0 +1,53 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT \n            origin_uid as \"origin!:_\",\n            logs as \"text!:_\",\n            severity as \"severity:_\",\n            created_at as \"created_at!:_\"\n        FROM logs \n        WHERE origin_uid = $1 \n        ORDER BY created_at DESC \n        LIMIT $2\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "origin!:_",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "text!:_",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "severity:_",
+        "type_info": {
+          "Custom": {
+            "name": "log_severity",
+            "kind": {
+              "Enum": [
+                "INFO",
+                "ERROR",
+                "WARN",
+                "DEBUG"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at!:_",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "95a730f57894595aedd3cf859a98d5f16599658c792a0991046e4bca6a23cbc8"
+}

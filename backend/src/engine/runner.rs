@@ -1,9 +1,10 @@
 use crate::crud::logs::create_log;
 use crate::http::error::Error as HTTPError;
-use crate::schemas::logs::Logs;
+use crate::schemas::logs::{LogSeverity, Logs};
 use crate::schemas::models::Model;
 use bollard::Docker;
 use bollard::config::{DeviceRequest, ResourcesUlimits};
+use bollard::container::LogOutput;
 use bollard::models::HostConfig;
 use bollard::plugin::ContainerCreateBody;
 use bollard::query_parameters::{CreateContainerOptionsBuilder, LogsOptionsBuilder};
@@ -98,6 +99,7 @@ impl Runner {
                 origin: self.model.model_id,
                 text: "Container started.".to_string(),
                 created_at: None,
+                severity: LogSeverity::Info,
             },
             db,
         )
@@ -116,12 +118,18 @@ impl Runner {
             while let Some(log_result) = log_stream.next().await {
                 match log_result {
                     Ok(log_output) => {
+                        let severity = match &log_output {
+                            LogOutput::StdErr { .. } => LogSeverity::Error,
+                            _ => LogSeverity::Info,
+                        };
+
                         let log_text = log_output.to_string();
                         let _ = create_log(
                             Logs {
                                 origin: origin_uid,
                                 text: log_text,
                                 created_at: None,
+                                severity: severity,
                             },
                             &bg_db,
                         )
@@ -137,6 +145,7 @@ impl Runner {
                     origin: origin_uid,
                     text: "Container stopped.".to_string(),
                     created_at: None,
+                    severity: LogSeverity::Info,
                 },
                 &bg_db,
             )

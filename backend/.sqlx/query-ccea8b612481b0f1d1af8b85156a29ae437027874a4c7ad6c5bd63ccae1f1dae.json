@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO logs (origin_uid, logs, severity) VALUES ($1, $2, $3::log_severity)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        {
+          "Custom": {
+            "name": "log_severity",
+            "kind": {
+              "Enum": [
+                "INFO",
+                "ERROR",
+                "WARN",
+                "DEBUG"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ccea8b612481b0f1d1af8b85156a29ae437027874a4c7ad6c5bd63ccae1f1dae"
+}

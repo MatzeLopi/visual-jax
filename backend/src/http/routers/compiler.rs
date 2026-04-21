@@ -1,5 +1,7 @@
 // Router for compiler related endpoints
+use crate::crud::models;
 use crate::http::{AppState, error::Error as HTTPError};
+use crate::schemas::models::ModelQueryOptions;
 use crate::schemas::training::TrainRequestPayload;
 use crate::{
     engine::{
@@ -32,6 +34,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/compiler/metric-types", get(get_metric_types))
         .route("/compiler/compile", post(compile_graph))
         .route("/training/start", post(start_training))
+        .route("/models", get(get_models))
         .with_state(state)
 }
 
@@ -134,4 +137,12 @@ async fn start_training(
     let runner = Runner::new(model).await?;
     runner.run(&state.db).await?;
     Ok(StatusCode::OK)
+}
+
+async fn get_models(
+    State(state): State<Arc<AppState>>,
+    Json(query): Json<ModelQueryOptions>,
+) -> Result<impl axum::response::IntoResponse, HTTPError> {
+    let models = models::get_models(query, &state.db).await?;
+    Ok(Json(models))
 }

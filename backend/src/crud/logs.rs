@@ -1,13 +1,17 @@
-use crate::{http::error::Error as HTTPError, schemas::logs::Logs};
+use crate::{
+    http::error::Error as HTTPError,
+    schemas::logs::{LogSeverity, Logs},
+};
 use log::error;
 use sqlx::PgPool;
 use uuid::Uuid;
 
 pub async fn create_log(log: Logs, db: &PgPool) -> Result<(), HTTPError> {
     let _ = sqlx::query!(
-        r#"INSERT INTO logs (origin_uid, logs) VALUES ($1, $2)"#,
+        r#"INSERT INTO logs (origin_uid, logs, severity) VALUES ($1, $2, $3::log_severity)"#,
         log.origin,
         log.text,
+        log.severity as LogSeverity,
     )
     .execute(db)
     .await
@@ -29,6 +33,7 @@ pub async fn get_log(uid: Uuid, limit: i64, db: &PgPool) -> Result<Vec<Logs>, HT
         SELECT 
             origin_uid as "origin!:_",
             logs as "text!:_",
+            severity as "severity:_",
             created_at as "created_at!:_"
         FROM logs 
         WHERE origin_uid = $1 

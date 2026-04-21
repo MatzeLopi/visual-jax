@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Model {
     pub model_id: Uuid,
     pub user_id: Uuid,
@@ -22,4 +22,14 @@ impl Default for Model {
             model_path: format!("/app/files/models/{}.py", Uuid::now_v7()),
         }
     }
+}
+
+#[derive(Deserialize, Debug, Default)]
+pub struct ModelQueryOptions {
+    pub model_id: Option<Uuid>,
+    pub user_id: Option<Uuid>,
+    // Interesting additions:
+    pub search: Option<String>,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
 }
