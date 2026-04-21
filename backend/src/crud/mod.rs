@@ -1,3 +1,4 @@
+pub mod dataset;
 pub mod logs;
 pub mod models;
 #[allow(unused_doc_comments)]

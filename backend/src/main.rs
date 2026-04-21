@@ -3,12 +3,12 @@ use anyhow::Context; // Needed for context to work
 use clap::Parser; // Needed for parse to work
 use deadpool::managed::Pool;
 use log::debug;
+use rust_backend::crud::dataset;
 use rust_backend::http;
 use rust_backend::{SmtpManager, config::Config};
 use sqlx::postgres::PgPoolOptions;
 use tera::Tera;
-use tokio::fs::create_dir_all;
-
+use tokio::{fs::create_dir_all, time::Duration, time::sleep};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -52,12 +52,18 @@ async fn main() -> anyhow::Result<()> {
     let tera_context = Tera::new("templates/**/*").unwrap();
 
     // Create some dirs needed
-
     create_dir_all("./files/models/").await.map_err(|e| {
         debug!("Create Dir all in compiler router failed with: {:?}", e);
         HTTPError::InternalServerError(format!("An error ocured when saving the model file. {e} "))
     })?;
 
+    let bg_db = db.clone();
+    tokio::spawn(async move {
+        loop {
+            dataset::cleanup_stale_datasets(&bg_db).await;
+            sleep(Duration::from_secs(24 * 60 * 60)).await;
+        }
+    });
     // Start Server
     http::serve(config, db, smtp_pool, tera_context)
         .await
