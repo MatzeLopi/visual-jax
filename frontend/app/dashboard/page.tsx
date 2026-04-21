@@ -65,7 +65,13 @@ export default function Dashboard() {
                         </div>
 
                         {/* Desktop Nav Actions */}
-                        <div className="hidden md:flex items-center gap-4">
+                        <div className="hidden md:flex items-center gap-6">
+                            {/* Navigation Links */}
+                            <div className="flex items-center gap-4 text-sm font-medium">
+                                <a href="/editor" className="text-gray-600 hover:text-gray-900 transition-colors">Editor</a>
+                                <a href="/training" className="text-gray-600 hover:text-gray-900 transition-colors">Training</a>
+                            </div>
+
                             {/* User Info with Separator */}
                             <div className="flex items-center gap-3 pr-4 border-r border-gray-200">
                                 <div className="h-8 w-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
@@ -103,6 +109,10 @@ export default function Dashboard() {
                 {/* Mobile Dropdown */}
                 {isMobileMenuOpen && (
                     <div id="mobile-menu" className="md:hidden border-t border-gray-100 bg-white px-4 py-3">
+                        <div className="mb-4 flex flex-col gap-2">
+                            <a href="/editor" className="block text-sm font-medium text-gray-700 py-2 border-b border-gray-100">Editor</a>
+                            <a href="/training" className="block text-sm font-medium text-gray-700 py-2 border-b border-gray-100">Training</a>
+                        </div>
                         <div className="mb-3 flex items-center gap-3">
                             <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600">
                                 {user.username?.charAt(0).toUpperCase()}

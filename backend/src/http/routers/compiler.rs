@@ -1,5 +1,5 @@
 // Router for compiler related endpoints
-use crate::crud::models;
+use crate::crud::models::{self, insert_model};
 use crate::http::{AppState, error::Error as HTTPError};
 use crate::schemas::models::ModelQueryOptions;
 use crate::schemas::training::TrainRequestPayload;
@@ -14,7 +14,7 @@ use crate::{
     schemas::models::Model,
 };
 use axum::{
-    extract::{Json, State},
+    extract::{Json, Query, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{Router, get, post},
@@ -123,6 +123,9 @@ async fn compile_graph(
         error!("File write in compiler router failed with {:?}", e);
         HTTPError::InternalServerError("An error ocured when saving the model file.".to_string())
     })?;
+
+    insert_model(&model, &state.db).await?;
+
     Ok((StatusCode::OK, Json(model)))
 }
 
@@ -141,7 +144,7 @@ async fn start_training(
 
 async fn get_models(
     State(state): State<Arc<AppState>>,
-    Json(query): Json<ModelQueryOptions>,
+    Query(query): Query<ModelQueryOptions>,
 ) -> Result<impl axum::response::IntoResponse, HTTPError> {
     let models = models::get_models(query, &state.db).await?;
     Ok(Json(models))
