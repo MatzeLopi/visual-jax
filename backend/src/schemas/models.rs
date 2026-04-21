@@ -28,7 +28,6 @@ impl Default for Model {
 pub struct ModelQueryOptions {
     pub model_id: Option<Uuid>,
     pub user_id: Option<Uuid>,
-    // Interesting additions:
     pub search: Option<String>,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
