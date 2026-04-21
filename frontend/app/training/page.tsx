@@ -19,7 +19,7 @@ function TrainingContent() {
     useEffect(() => {
         const fetchModels = async () => {
             try {
-                const res = await api.get('/models');
+                const res = await api.get('/models', { data: {} });
                 setModels(res.data);
 
                 if (modelIdFromUrl) {
@@ -85,8 +85,11 @@ function TrainingContent() {
                     </div>
 
                     <div className="h-4 w-px bg-gray-300"></div>
+                    <Link href="/dashboard" className="text-sm font-medium text-gray-600 hover:text-black transition-colors">
+                        Dashboard
+                    </Link>
                     <Link href="/editor" className="text-sm font-medium text-gray-600 hover:text-black transition-colors">
-                        Go to Editor
+                        Editor
                     </Link>
                 </div>
             </div>

@@ -38,7 +38,7 @@ impl Runner {
         let host_config = HostConfig {
             binds: Some(vec![
                 "models:/app/files/models".to_string(),
-                "datasets:/app/uploads".to_string(),
+                "visual-jax_datasets:/app/uploads".to_string(),
             ]),
             auto_remove: Some(true),
 

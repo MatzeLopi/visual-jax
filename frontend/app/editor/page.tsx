@@ -202,8 +202,11 @@ function EditorContent() {
                     </div>
 
                     <div className="h-4 w-px bg-gray-300"></div>
+                    <Link href="/dashboard" className="text-sm font-medium text-gray-600 hover:text-black transition-colors">
+                        Dashboard
+                    </Link>
                     <Link href="/training" className="text-sm font-medium text-gray-600 hover:text-black transition-colors">
-                        Go to Training
+                        Training
                     </Link>
                 </div>
 

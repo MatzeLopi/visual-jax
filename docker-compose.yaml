@@ -44,6 +44,5 @@ services:
 volumes:
   pgdata:
   datasets:
-    name: datasets
   models:
     name: models
