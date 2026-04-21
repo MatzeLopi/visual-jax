@@ -94,3 +94,18 @@ pub async fn get_models(query: ModelQueryOptions, db: &PgPool) -> Result<Vec<Mod
 
     Ok(result)
 }
+
+pub async fn get_model_owner(uid: Uuid, db: &PgPool) -> Result<Option<Uuid>, HTTPError> {
+    let user_id: Option<Option<Uuid>> = sqlx::query_scalar(
+        "SELECT user_id FROM models WHERE model_id = $1 LIMIT 1"
+    )
+    .bind(uid)
+    .fetch_optional(db)
+    .await
+    .map_err(|e| {
+        error!("Error when retrieving model owner: {:?}", e);
+        HTTPError::InternalServerError("Error in database.".to_string())
+    })?;
+
+    user_id.ok_or(HTTPError::NotFound)
+}
