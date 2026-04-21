@@ -44,15 +44,12 @@ pub async fn get_path(uid: Uuid, version: Option<i32>, db: &PgPool) -> Result<St
 }
 
 pub async fn get_models(query: ModelQueryOptions, db: &PgPool) -> Result<Vec<Model>, HTTPError> {
-    // 1. Start with the base query
-    // We use WHERE 1=1 as a trick so we can safely append " AND ..." for all filters
     let mut builder: QueryBuilder<sqlx::Postgres> = QueryBuilder::new(
         "SELECT model_id, user_id, version_, model_name, model_description, model_path 
          FROM models 
          WHERE 1=1",
     );
 
-    // 2. Dynamically add filters
     if let Some(uid) = query.user_id {
         builder.push(" AND user_id = ");
         builder.push_bind(uid);
@@ -65,13 +62,11 @@ pub async fn get_models(query: ModelQueryOptions, db: &PgPool) -> Result<Vec<Mod
 
     if let Some(search_term) = query.search {
         builder.push(" AND model_name ILIKE ");
-        builder.push_bind(format!("%{}%", search_term)); // ILIKE is case-insensitive search
+        builder.push_bind(format!("%{}%", search_term));
     }
 
-    // 3. Add sorting
     builder.push(" ORDER BY version_ DESC");
 
-    // 4. Add pagination (Limit & Offset)
     if let Some(limit) = query.limit {
         builder.push(" LIMIT ");
         builder.push_bind(limit);
@@ -82,7 +77,6 @@ pub async fn get_models(query: ModelQueryOptions, db: &PgPool) -> Result<Vec<Mod
         builder.push_bind(offset);
     }
 
-    // 5. Build and execute the query
     let result: Vec<Model> = builder
         .build_query_as::<Model>()
         .fetch_all(db)
