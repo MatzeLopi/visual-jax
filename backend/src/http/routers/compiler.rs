@@ -76,7 +76,6 @@ async fn compile_graph(
     Json(payload): Json<TrainRequestPayload>,
 ) -> Result<impl axum::response::IntoResponse, HTTPError> {
     let model = Model::default();
-
     let processor = GraphProcessor::new(payload.graph);
 
     let sorted_nodes = processor.validate_and_sort().map_err(|e| {

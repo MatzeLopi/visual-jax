@@ -3,6 +3,8 @@ use log::error;
 use sqlx::PgPool;
 use uuid::Uuid;
 
+
+
 pub async fn get_path(uid: Uuid, version: Option<i32>, db: &PgPool) -> Result<String, HTTPError> {
     let model_path = match version {
         Some(v) => sqlx::query_scalar!(
