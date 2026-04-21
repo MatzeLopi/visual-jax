@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
     ReactFlow,
     Background,
@@ -19,7 +19,9 @@ import Sidebar from '../components/Sidebar';
 import PropertiesPanel from '../components/PropertiesPanel';
 import TrainingConfig from '../components/TrainingConfig';
 import { getOutputDimension, INPUT_KEYS } from '../lib/graphUtils';
-import { TrainParams, Model, Log } from '../types';
+import { TrainParams } from '../types';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 let id = 0;
 const getId = () => `node_${id++}`;
@@ -35,42 +37,20 @@ export default function Editor() {
 function EditorContent() {
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
     const { getNodes, getEdges, screenToFlowPosition } = useReactFlow();
+    const router = useRouter();
 
     // Nodes & Edges State
     const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-    const [compiledModel, setCompiledModel] = useState<Model | null>(null);
-    const [logs, setLogs] = useState<Log[]>([]);
     const [isTrainingModalOpen, setIsTrainingModalOpen] = useState(false);
-    const [isTraining, setIsTraining] = useState(false);
     const [trainParams, setTrainParams] = useState<TrainParams>({
         loss: { type: '' },
         metrics: [],
         epochs: 10,
         batchsize: 32
     });
-
-    useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (isTraining && compiledModel) {
-            interval = setInterval(async () => {
-                try {
-                    const res = await api.get(`/logs/${compiledModel.model_id}`);
-                    setLogs(res.data);
-
-                    // Stop polling if we see the container stopped
-                    if (res.data.some((l: Log) => l.text.includes("Container stopped."))) {
-                        setIsTraining(false);
-                    }
-                } catch (err) {
-                    console.error("Error fetching logs:", err);
-                }
-            }, 2000);
-        }
-        return () => clearInterval(interval);
-    }, [isTraining, compiledModel]);
 
     // We don't need to store the instance anymore since we use useReactFlow
     // const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
@@ -171,6 +151,7 @@ function EditorContent() {
     // Also clear selection if user clicks on empty canvas
     const onPaneClick = () => setSelectedNode(null);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleUpdateNode = (nodeId: string, newKind: Record<string, any>) => {
         setNodes((nds) => nds.map((node) => {
             if (node.id === nodeId) {
@@ -197,36 +178,38 @@ function EditorContent() {
 
         try {
             const res = await api.post('/compiler/compile', payload);
-            setCompiledModel(res.data);
             setIsTrainingModalOpen(false);
+            router.push(`/training?modelId=${res.data.model_id}`);
         } catch (err: unknown) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const msg = (err as any).response?.data?.error || (err as Error).message || "Unknown Error";
             alert(`Error: ${msg}`);
-        }
-    };
-
-    const handleStartTraining = async () => {
-        if (!compiledModel) return;
-        try {
-            await api.post('/training/start', compiledModel);
-            setIsTraining(true);
-            setLogs([]); // Clear previous logs
-        } catch (err: unknown) {
-            const msg = (err as any).response?.data?.error || (err as Error).message || "Unknown Error";
-            alert(`Error starting training: ${msg}`);
         }
     };
 
     return (
         <div className="h-screen flex flex-col bg-white text-gray-900 font-sans">
             {/* Header */}
-            <div className="h-14 border-b border-gray-200 flex items-center justify-between px-6 bg-white z-10">
-                <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 bg-black rounded flex items-center justify-center">
-                        <span className="text-white text-xs font-bold">V</span>
+            <div className="h-14 border-b border-gray-200 flex items-center justify-between px-6 bg-white z-10 shadow-sm">
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-6 h-6 bg-black rounded flex items-center justify-center">
+                            <span className="text-white text-xs font-bold">V</span>
+                        </div>
+                        <h1 className="font-bold text-sm tracking-tight text-gray-900">
+                            Visual JAX <span className="text-gray-400 font-normal">/ Editor</span>
+                        </h1>
                     </div>
-                    <h1 className="font-bold text-sm tracking-tight text-gray-900">Visual JAX <span className="text-gray-400 font-normal">/ Editor</span></h1>
+
+                    <div className="h-4 w-px bg-gray-300"></div>
+                    <Link href="/dashboard" className="text-sm font-medium text-gray-600 hover:text-black transition-colors">
+                        Dashboard
+                    </Link>
+                    <Link href="/training" className="text-sm font-medium text-gray-600 hover:text-black transition-colors">
+                        Training
+                    </Link>
                 </div>
+
                 <button
                     onClick={() => setIsTrainingModalOpen(true)}
                     className="bg-black text-white px-5 py-1.5 rounded-md text-xs font-medium hover:bg-gray-800 transition-all shadow-sm"
@@ -271,37 +254,6 @@ function EditorContent() {
                     onChange={handleUpdateNode}
                     onDelete={handleDeleteNode}
                 />
-
-                <div className="w-[400px] border-l border-gray-200 bg-white flex flex-col z-20">
-                    <div className="px-4 py-3 bg-white text-gray-900 text-xs font-bold border-b border-gray-100 flex justify-between items-center tracking-wide">
-                        TRAINING MONITOR
-                    </div>
-                    <div className="p-4 border-b border-gray-100">
-                        <button
-                            onClick={handleStartTraining}
-                            disabled={!compiledModel || isTraining}
-                            className={`w-full py-2 rounded-md text-sm font-medium transition-all ${!compiledModel || isTraining
-                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                                : 'bg-green-600 text-white hover:bg-green-700 shadow-sm'
-                                }`}
-                        >
-                            {isTraining ? 'Training...' : compiledModel ? 'Start Training' : 'Compile to Train'}
-                        </button>
-                    </div>
-                    <div className="flex-1 overflow-auto p-0 bg-[#1E1E1E] text-gray-300">
-                        <div className="p-4 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-all">
-                            {logs.length === 0 ? (
-                                <span className="text-gray-500 italic">Waiting for logs...</span>
-                            ) : (
-                                logs.map((log, idx) => (
-                                    <div key={idx} className="mb-1">
-                                        {log.text}
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     );

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This document outlines the strict constraints, architecture boundaries, and workflow rules for all AI agents (including Jules) operating within this repository. 
+This document outlines the strict constraints, architecture boundaries, and workflow rules for all AI agents (including Jules) operating within this repository.
 
 ## Setup & Execution
 

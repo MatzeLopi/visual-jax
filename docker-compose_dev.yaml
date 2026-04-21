@@ -22,7 +22,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: visual_jax_backend
-    user: "root"              
+    user: "root"
     restart: always
     ports:
       - "8080:8080"

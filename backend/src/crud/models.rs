@@ -6,6 +6,29 @@ use log::error;
 use sqlx::{PgPool, QueryBuilder};
 use uuid::Uuid;
 
+pub async fn insert_model(model: &Model, db: &PgPool) -> Result<(), HTTPError> {
+    sqlx::query!(
+        r#"
+        INSERT INTO models (model_id, user_id, version_, model_name, model_description, model_path)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        "#,
+        model.model_id,
+        model.user_id,
+        model.version_,
+        model.model_name,
+        model.model_description,
+        model.model_path
+    )
+    .execute(db)
+    .await
+    .map_err(|e| {
+        error!("Error inserting model into database: {:?}", e);
+        HTTPError::InternalServerError("Failed to save model to database.".to_string())
+    })?;
+
+    Ok(())
+}
+
 pub async fn get_path(uid: Uuid, version: Option<i32>, db: &PgPool) -> Result<String, HTTPError> {
     let model_path = match version {
         Some(v) => sqlx::query_scalar!(
