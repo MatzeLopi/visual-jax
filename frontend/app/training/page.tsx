@@ -15,6 +15,7 @@ function TrainingContent() {
     const [isTraining, setIsTraining] = useState(false);
     const [logs, setLogs] = useState<Log[]>([]);
     const [loadingModels, setLoadingModels] = useState(true);
+    const [loadingLogs, setLoadingLogs] = useState(false);
 
     useEffect(() => {
         const fetchModels = async () => {
@@ -37,6 +38,23 @@ function TrainingContent() {
 
         fetchModels();
     }, [modelIdFromUrl]);
+
+    useEffect(() => {
+        const fetchHistoricLogs = async () => {
+            if (selectedModel && !isTraining) {
+                setLoadingLogs(true);
+                try {
+                    const res = await api.get(`/logs/${selectedModel.model_id}`);
+                    setLogs(res.data);
+                } catch (err) {
+                    console.error("Error fetching historic logs:", err);
+                } finally {
+                    setLoadingLogs(false);
+                }
+            }
+        };
+        fetchHistoricLogs();
+    }, [selectedModel, isTraining]);
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
@@ -153,9 +171,13 @@ function TrainingContent() {
                     </div>
 
                     <div className="flex-1 overflow-auto bg-[#1E1E1E] text-gray-300 font-mono p-6">
-                        {logs.length === 0 ? (
+                        {loadingLogs ? (
                             <div className="flex h-full items-center justify-center text-gray-500 italic">
-                                {selectedModel ? "Click 'Start Training' to view logs." : "Select a model to begin."}
+                                Loading logs...
+                            </div>
+                        ) : logs.length === 0 ? (
+                            <div className="flex h-full items-center justify-center text-gray-500 italic">
+                                {selectedModel ? "No logs found for this model. Click 'Start Training' to begin." : "Select a model to begin."}
                             </div>
                         ) : (
                             <div className="text-[13px] leading-relaxed whitespace-pre-wrap break-all">
