@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, DragEvent } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
     ReactFlow,
     Background,
@@ -14,13 +14,12 @@ import {
     Edge,
     useReactFlow
 } from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
 import api from '../lib/api';
 import Sidebar from '../components/Sidebar';
 import PropertiesPanel from '../components/PropertiesPanel';
 import TrainingConfig from '../components/TrainingConfig';
 import { getOutputDimension, INPUT_KEYS } from '../lib/graphUtils';
-import { TrainParams } from '../types';
+import { TrainParams, Model, Log } from '../types';
 
 let id = 0;
 const getId = () => `node_${id++}`;
@@ -42,14 +41,36 @@ function EditorContent() {
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-    const [compiledCode, setCompiledCode] = useState("// Output will appear here...");
+    const [compiledModel, setCompiledModel] = useState<Model | null>(null);
+    const [logs, setLogs] = useState<Log[]>([]);
     const [isTrainingModalOpen, setIsTrainingModalOpen] = useState(false);
+    const [isTraining, setIsTraining] = useState(false);
     const [trainParams, setTrainParams] = useState<TrainParams>({
         loss: { type: '' },
         metrics: [],
         epochs: 10,
         batchsize: 32
     });
+
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (isTraining && compiledModel) {
+            interval = setInterval(async () => {
+                try {
+                    const res = await api.get(`/logs/${compiledModel.model_id}`);
+                    setLogs(res.data);
+
+                    // Stop polling if we see the container stopped
+                    if (res.data.some((l: Log) => l.text.includes("Container stopped."))) {
+                        setIsTraining(false);
+                    }
+                } catch (err) {
+                    console.error("Error fetching logs:", err);
+                }
+            }, 2000);
+        }
+        return () => clearInterval(interval);
+    }, [isTraining, compiledModel]);
 
     // We don't need to store the instance anymore since we use useReactFlow
     // const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
@@ -93,19 +114,21 @@ function EditorContent() {
         [getNodes, getEdges, setEdges, setNodes]
     );
 
-    const onDragOver = useCallback((event: DragEvent) => {
+    const onDragOver = useCallback((event: React.DragEvent) => {
         event.preventDefault();
-        event.dataTransfer.dropEffect = 'move';
+        if (event.dataTransfer) {
+            event.dataTransfer.dropEffect = 'move';
+        }
     }, []);
 
     const onDrop = useCallback(
-        (event: DragEvent) => {
+        (event: React.DragEvent) => {
             event.preventDefault();
             // if (!reactFlowWrapper.current || !reactFlowInstance) return;
             // We use screenToFlowPosition from hook, checking wrapper ref is good practice but not strictly required for hook if provider is up
 
-            const type = event.dataTransfer.getData('application/reactflow');
-            const configStr = event.dataTransfer.getData('application/config');
+            const type = event.dataTransfer?.getData('application/reactflow');
+            const configStr = event.dataTransfer?.getData('application/config');
 
             if (typeof type === 'undefined' || !type) return;
 
@@ -163,7 +186,7 @@ function EditorContent() {
         setSelectedNode((prev) => prev && prev.id === nodeId ? { ...prev, data: { ...prev.data, kind: newKind } } : prev);
     };
 
-    const handleTrain = async () => {
+    const handleCompile = async () => {
         const payload = {
             graph: {
                 nodes: nodes.map(n => ({ id: n.id, kind: n.data.kind, position: n.position })),
@@ -174,11 +197,23 @@ function EditorContent() {
 
         try {
             const res = await api.post('/compiler/compile', payload);
-            setCompiledCode(res.data.code);
+            setCompiledModel(res.data);
             setIsTrainingModalOpen(false);
         } catch (err: unknown) {
             const msg = (err as any).response?.data?.error || (err as Error).message || "Unknown Error";
-            setCompiledCode(`Error: ${msg}`);
+            alert(`Error: ${msg}`);
+        }
+    };
+
+    const handleStartTraining = async () => {
+        if (!compiledModel) return;
+        try {
+            await api.post('/training/start', compiledModel);
+            setIsTraining(true);
+            setLogs([]); // Clear previous logs
+        } catch (err: unknown) {
+            const msg = (err as any).response?.data?.error || (err as Error).message || "Unknown Error";
+            alert(`Error starting training: ${msg}`);
         }
     };
 
@@ -196,7 +231,7 @@ function EditorContent() {
                     onClick={() => setIsTrainingModalOpen(true)}
                     className="bg-black text-white px-5 py-1.5 rounded-md text-xs font-medium hover:bg-gray-800 transition-all shadow-sm"
                 >
-                    Train Model
+                    Compile
                 </button>
             </div>
 
@@ -206,7 +241,7 @@ function EditorContent() {
                         params={trainParams}
                         onChange={setTrainParams}
                         onClose={() => setIsTrainingModalOpen(false)}
-                        onStart={handleTrain}
+                        onStart={handleCompile}
                     />
                 )}
                 <Sidebar />
@@ -239,12 +274,32 @@ function EditorContent() {
 
                 <div className="w-[400px] border-l border-gray-200 bg-white flex flex-col z-20">
                     <div className="px-4 py-3 bg-white text-gray-900 text-xs font-bold border-b border-gray-100 flex justify-between items-center tracking-wide">
-                        GENERATED PYTHON
+                        TRAINING MONITOR
                     </div>
-                    <div className="flex-1 overflow-auto p-0 bg-[#FAFAFA]">
-                        <pre className="text-[11px] font-mono text-gray-600 p-4 leading-relaxed whitespace-pre overflow-x-auto">
-                            {compiledCode}
-                        </pre>
+                    <div className="p-4 border-b border-gray-100">
+                        <button
+                            onClick={handleStartTraining}
+                            disabled={!compiledModel || isTraining}
+                            className={`w-full py-2 rounded-md text-sm font-medium transition-all ${!compiledModel || isTraining
+                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                : 'bg-green-600 text-white hover:bg-green-700 shadow-sm'
+                                }`}
+                        >
+                            {isTraining ? 'Training...' : compiledModel ? 'Start Training' : 'Compile to Train'}
+                        </button>
+                    </div>
+                    <div className="flex-1 overflow-auto p-0 bg-[#1E1E1E] text-gray-300">
+                        <div className="p-4 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-all">
+                            {logs.length === 0 ? (
+                                <span className="text-gray-500 italic">Waiting for logs...</span>
+                            ) : (
+                                logs.map((log, idx) => (
+                                    <div key={idx} className="mb-1">
+                                        {log.text}
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

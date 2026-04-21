@@ -10,8 +10,14 @@ BATCH_SIZE = {{ batch_size }}
 key = jax.random.PRNGKey(0)
 rngs = nnx.Rngs(key)
 
+print("Trying to load data.", flush=True)
 data = DataLoader(BATCH_SIZE, key)
+print("Data loaded successfully.", flush=True)
+
+print("Trying to create model.", flush=True)
 model = GeneratedModel(rngs)
+print ("Model created successfully.", flush=True)
+
 optimizer = nnx.Optimizer(model, optax.adam(0.001))
 
 @nnx.jit
@@ -38,6 +44,7 @@ def train_step(model, optimizer, x, y):
 
     return metrics_dict
 
+print("Starting Training", flush=True)
 for epoch in range(EPOCHS):
     epoch_metrics = {}
     batches = 0

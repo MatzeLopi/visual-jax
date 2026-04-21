@@ -3,11 +3,12 @@ use crate::http::error::Error as HTTPError;
 use crate::schemas::logs::Logs;
 use crate::schemas::models::Model;
 use bollard::Docker;
+use bollard::config::{DeviceRequest, ResourcesUlimits};
 use bollard::models::HostConfig;
 use bollard::plugin::ContainerCreateBody;
 use bollard::query_parameters::{CreateContainerOptionsBuilder, LogsOptionsBuilder};
 use futures::{StreamExt, TryStreamExt};
-use log::{debug, error, info};
+use log::{debug, error};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -34,8 +35,33 @@ impl Runner {
         })?;
 
         let host_config = HostConfig {
-            binds: Some(vec!["models:/app/files/models".to_string()]),
+            binds: Some(vec![
+                "models:/app/files/models".to_string(),
+                "visual-jax_datasets:/app/uploads".to_string(),
+            ]),
             auto_remove: Some(true),
+
+            ipc_mode: Some("host".to_string()),
+
+            ulimits: Some(vec![
+                ResourcesUlimits {
+                    name: Some("memlock".to_string()),
+                    soft: Some(-1),
+                    hard: Some(-1),
+                },
+                ResourcesUlimits {
+                    name: Some("stack".to_string()),
+                    soft: Some(67108864),
+                    hard: Some(67108864),
+                },
+            ]),
+
+            device_requests: Some(vec![DeviceRequest {
+                driver: Some("nvidia".to_string()),
+                count: Some(-1),
+                capabilities: Some(vec![vec!["gpu".to_string()]]),
+                ..Default::default()
+            }]),
             ..Default::default()
         };
 
@@ -77,7 +103,11 @@ impl Runner {
         )
         .await?;
 
-        let log_options = LogsOptionsBuilder::new().stderr(true).stdout(true).build();
+        let log_options = LogsOptionsBuilder::new()
+            .stderr(true)
+            .stdout(true)
+            .follow(true)
+            .build();
         let mut log_stream = docker.logs(&self.name, Some(log_options));
         let origin_uid = self.model.model_id.clone();
         let bg_db = db.clone();

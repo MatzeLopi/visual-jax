@@ -16,3 +16,18 @@ export interface TrainRequestPayload {
     graph: GraphPayload;
     params: TrainParams;
 }
+
+export interface Model {
+    model_id: string;
+    user_id: string;
+    version_: number;
+    model_name: string | null;
+    model_description: string | null;
+    model_path: string;
+}
+
+export interface Log {
+    origin: string;
+    text: string;
+    created_at: string | null;
+}
