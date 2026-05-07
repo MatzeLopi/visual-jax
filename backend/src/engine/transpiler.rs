@@ -36,10 +36,8 @@ pub fn transpile_model(
         let clean_id = id.replace("-", "_");
         let current_out_var = format!("out_{}", clean_id);
 
-        // --- A. Resolve Inputs ---
         let parents = incoming_map.get(&id).cloned().unwrap_or_default();
 
-        // Collect all parent Python variable names
         let mut parent_vars = Vec::new();
         for p in &parents {
             let var = var_map.get(p).ok_or_else(|| {
@@ -209,11 +207,11 @@ pub fn transpile_training(params: TrainParams, tera: &Arc<Tera>) -> Result<Strin
             match metric {
                 MetricType::Accuracy => {
                     metric_calcs.push("acc = jnp.mean(jnp.argmax(preds, axis=-1) == jnp.argmax(batch_y, axis=-1))".to_string());
-                    metric_assigns.push("metrics_dict['accuracy'] = float(acc)".to_string());
+                    metric_assigns.push("metrics_dict['accuracy'] = acc".to_string());
                 }
                 MetricType::MeanAbsoluteError => {
                     metric_calcs.push("mae = jnp.mean(jnp.abs(preds - batch_y))".to_string());
-                    metric_assigns.push("metrics_dict['mae'] = float(mae)".to_string());
+                    metric_assigns.push("metrics_dict['mae'] = mae".to_string());
                 }
             }
         }

@@ -26,11 +26,11 @@ class DataLoader:
 
         num_samples = total_rows // seq_len
 
-        if len(self._y_flat.shape) == 1:
-            self._y_flat = self._y_flat.reshape(-1, 1)
+        if len(self.y_flat.shape) == 1:
+            self.y_flat = self.y_flat.reshape(-1, 1)
 
-        self._X = self._X_flat.reshape((num_samples, seq_len, num_features))
-        self._y = self._y_flat.reshape((num_samples, seq_len, num_targets))
+        self._X = self.X_flat.reshape((num_samples, seq_len, num_features))
+        self._y = self.y_flat.reshape((num_samples, seq_len, num_targets))
 
         if self.batch_size > num_samples:
             self.batch_size = num_samples

@@ -18,7 +18,18 @@ print("Trying to create model.", flush=True)
 model = GeneratedModel(rngs)
 print ("Model created successfully.", flush=True)
 
-optimizer = nnx.Optimizer(model, optax.adam(0.001))
+optimizer = nnx.Optimizer(model, optax.adam(0.001), wrt=nnx.Param)
+
+def sanitize(d):
+    sanitized = {}
+    for key, value in d.items():
+        if hasattr(value, "tolist") and callable(value.tolist):
+            sanitized[key] = value.tolist()
+        elif isinstance(value, dict):
+            sanitized[key] = sanitize(value)
+        else:
+            sanitized[key] = value
+    return sanitized
 
 @nnx.jit
 def train_step(model, optimizer, x, y):
@@ -30,9 +41,9 @@ def train_step(model, optimizer, x, y):
         return loss, preds
 
     (loss, preds), grads = nnx.value_and_grad(loss_fn, has_aux=True)(model)    
-    optimizer.update(grads)
+    optimizer.update(model, grads)
     
-    metrics_dict = {"loss": float(loss)}
+    metrics_dict = {"loss": loss}
     
     {% for calc in metric_calcs %}
     {{ calc | safe }}
@@ -46,20 +57,17 @@ def train_step(model, optimizer, x, y):
 
 print("Starting Training", flush=True)
 for epoch in range(EPOCHS):
-    epoch_metrics = {}
-    batches = 0
+    batch_metrics_list = []
     
     for x, y in data:
         step_metrics = train_step(model, optimizer, x, y)
-        
-        for k, v in step_metrics.items():
-            epoch_metrics[k] = epoch_metrics.get(k, 0.0) + float(v)
-        batches += 1
-
+        batch_metrics_list.append(step_metrics)
+    
+    epoch_means = jax.tree.map(lambda *xs: jnp.stack(xs).mean(), *batch_metrics_list)
+    
     final_metrics = {"epoch": epoch + 1}
-    for k, v in epoch_metrics.items():
-        final_metrics[k] = v / batches if batches > 0 else 0.0
-        
+    final_metrics.update(sanitize(epoch_means))
+    
     print(json.dumps(final_metrics), flush=True)
 
 print(json.dumps({"status": "completed"}), flush=True)

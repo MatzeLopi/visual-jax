@@ -41,8 +41,7 @@ export default function InputProperties({ nodeId, config, onConfigChange, onDele
         ? config.targets
         : (config.target ? [config.target] : []);
     const seqLen: number = config.sequence_length || 1;
-    const sep: string = config.separatpr || ";";
-
+    const sep: string = config.separator ?? ";";
     // 1. Fetch Datasets on Mount
     useEffect(() => {
         api.get('/datasets/list')
@@ -113,7 +112,7 @@ export default function InputProperties({ nodeId, config, onConfigChange, onDele
                 targets: [],
                 target: undefined, // Clear legacy
                 sequence_length: 1,
-                separator: ";"
+                separator: ","
             });
 
         } catch (error) {
@@ -355,8 +354,7 @@ export default function InputProperties({ nodeId, config, onConfigChange, onDele
                         Separator in CSV file
                     </label>
                     <input
-                        type="string"
-                        min=";"
+                        type="text"
                         value={sep}
                         onChange={(e) => {
                             const val = e.target.value;

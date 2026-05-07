@@ -104,9 +104,6 @@ function EditorContent() {
     const onDrop = useCallback(
         (event: React.DragEvent) => {
             event.preventDefault();
-            // if (!reactFlowWrapper.current || !reactFlowInstance) return;
-            // We use screenToFlowPosition from hook, checking wrapper ref is good practice but not strictly required for hook if provider is up
-
             const type = event.dataTransfer?.getData('application/reactflow');
             const configStr = event.dataTransfer?.getData('application/config');
 
