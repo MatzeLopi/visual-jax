@@ -5,7 +5,6 @@ use serde::Serialize;
 use std::{collections::HashMap, sync::Arc};
 use tera::Tera;
 
-// Define the data structure passed to the Jinja2 template
 #[derive(Serialize)]
 struct ModelContext {
     init_lines: Vec<String>,
@@ -27,15 +26,12 @@ pub fn transpile_model(
     incoming_map: HashMap<String, Vec<String>>,
     tera: &Arc<Tera>,
 ) -> Result<String> {
-    // 2. State Tracking
     let mut init_lines = Vec::new();
     let mut call_blocks = Vec::new();
 
-    // Flags & tables
-    let mut var_map: HashMap<String, String> = HashMap::new(); // Maps NodeID -> Python Var Name
-    let mut last_output_var = "x".to_string(); // Default to input 'x' if graph is empty
+    let mut var_map: HashMap<String, String> = HashMap::new();
+    let mut last_output_var = "x".to_string();
 
-    // 3. Iterate Nodes in Topological Order
     for (id, kind) in sorted_nodes {
         let clean_id = id.replace("-", "_");
         let current_out_var = format!("out_{}", clean_id);
@@ -62,10 +58,8 @@ pub fn transpile_model(
             parent_vars[0].clone()
         };
 
-        // --- B. Generate Node Logic ---
         match kind {
             NodeKind::Input(_) => {
-                // Alias the node's output to the input 'x'
                 call_blocks.push(format!("{} = {}", current_out_var, input_var_name));
             }
             NodeKind::Layer(layer_type) => match layer_type {
@@ -86,7 +80,6 @@ pub fn transpile_model(
                         clean_id, dim_in, dim_out
                     ));
 
-                    // 2. Generate the self-contained scan block
                     call_blocks.push(format!(
                         r#"
         # --- GRU Cell {0} ---
@@ -130,7 +123,6 @@ pub fn transpile_model(
                     ));
                 }
                 LayerType::Flatten => {
-                    // Standard JAX flattening: Keeps batch dim, flattens the rest
                     call_blocks.push(format!(
                         "{} = {}.reshape(({}.shape[0], -1)) # Explicit Flatten",
                         current_out_var, input_var_name, input_var_name
@@ -151,14 +143,12 @@ pub fn transpile_model(
             }
         }
 
-        // --- C. Register Output ---
         var_map.insert(id.clone(), current_out_var.clone());
         last_output_var = current_out_var;
     }
 
     call_blocks.push(format!("return {}", last_output_var));
 
-    // 6. Render Final Template
     let context = ModelContext {
         init_lines,
         call_blocks,
@@ -218,9 +208,7 @@ pub fn transpile_training(params: TrainParams, tera: &Arc<Tera>) -> Result<Strin
         for metric in metrics {
             match metric {
                 MetricType::Accuracy => {
-                    // The calculation
                     metric_calcs.push("acc = jnp.mean(jnp.argmax(preds, axis=-1) == jnp.argmax(batch_y, axis=-1))".to_string());
-                    // The assignment
                     metric_assigns.push("metrics_dict['accuracy'] = float(acc)".to_string());
                 }
                 MetricType::MeanAbsoluteError => {
