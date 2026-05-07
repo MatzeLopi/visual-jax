@@ -13,10 +13,11 @@ pub enum LogSeverity {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-
 pub struct Logs {
     pub origin: Uuid,
+    pub run_id: Option<Uuid>,
     pub text: String,
+    #[serde(with = "time::serde::rfc3339::option")]
     pub created_at: Option<OffsetDateTime>,
     pub severity: LogSeverity,
 }

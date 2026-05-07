@@ -28,6 +28,7 @@ export interface Model {
 
 export interface Log {
     origin: string;
+    run_id?: string;
     text: string;
     created_at: string | null;
 }

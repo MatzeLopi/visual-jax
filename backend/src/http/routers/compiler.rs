@@ -34,7 +34,6 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/compiler/metric-types", get(get_metric_types))
         .route("/compiler/compile", post(compile_graph))
         .route("/training/start", post(start_training))
-        .route("/models", get(get_models))
         .with_state(state)
 }
 
@@ -78,7 +77,7 @@ async fn compile_graph(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<TrainRequestPayload>,
 ) -> Result<impl axum::response::IntoResponse, HTTPError> {
-    let model = Model::default();
+    let mut model = Model::default();
     let processor = GraphProcessor::new(payload.graph);
 
     let sorted_nodes = processor.validate_and_sort().map_err(|e| {
@@ -124,7 +123,9 @@ async fn compile_graph(
         HTTPError::InternalServerError("An error ocured when saving the model file.".to_string())
     })?;
 
-    insert_model(&model, &state.db).await?;
+    let db_version = insert_model(&model, &state.db).await?;
+
+    model.version_ = db_version;
 
     Ok((StatusCode::OK, Json(model)))
 }
@@ -140,12 +141,4 @@ async fn start_training(
     let runner = Runner::new(model).await?;
     runner.run(&state.db).await?;
     Ok(StatusCode::OK)
-}
-
-async fn get_models(
-    State(state): State<Arc<AppState>>,
-    Query(query): Query<ModelQueryOptions>,
-) -> Result<impl axum::response::IntoResponse, HTTPError> {
-    let models = models::get_models(query, &state.db).await?;
-    Ok(Json(models))
 }

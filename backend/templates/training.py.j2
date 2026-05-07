@@ -35,11 +35,11 @@ def train_step(model, optimizer, x, y):
     metrics_dict = {"loss": float(loss)}
     
     {% for calc in metric_calcs %}
-        {{ calc | safe }}
+    {{ calc | safe }}
     {% endfor %}
     
     {% for assign in metric_assigns %}
-        {{ assign | safe }}
+    {{ assign | safe }}
     {% endfor %}
 
     return metrics_dict

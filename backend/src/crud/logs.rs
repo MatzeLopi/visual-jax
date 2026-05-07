@@ -8,8 +8,9 @@ use uuid::Uuid;
 
 pub async fn create_log(log: Logs, db: &PgPool) -> Result<(), HTTPError> {
     let _ = sqlx::query!(
-        r#"INSERT INTO logs (origin_uid, logs, severity) VALUES ($1, $2, $3::log_severity)"#,
+        r#"INSERT INTO logs (origin_uid, run_id, logs, severity) VALUES ($1, $2, $3, $4::log_severity)"#,
         log.origin,
+        log.run_id,
         log.text,
         log.severity as LogSeverity,
     )
@@ -30,14 +31,15 @@ pub async fn get_log(uid: Uuid, limit: i64, db: &PgPool) -> Result<Vec<Logs>, HT
     let result: Vec<Logs> = sqlx::query_as!(
         Logs,
         r#"
-        SELECT 
+        SELECT
             origin_uid as "origin!:_",
+            run_id as "run_id",
             logs as "text!:_",
             severity as "severity:_",
             created_at as "created_at!:_"
-        FROM logs 
-        WHERE origin_uid = $1 
-        ORDER BY created_at DESC 
+        FROM logs
+        WHERE origin_uid = $1
+        ORDER BY created_at DESC
         LIMIT $2
         "#,
         uid,

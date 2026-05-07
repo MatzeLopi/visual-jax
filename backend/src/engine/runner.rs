@@ -97,6 +97,7 @@ impl Runner {
         create_log(
             Logs {
                 origin: self.model.model_id,
+                run_id: Some(run_id),
                 text: "Container started.".to_string(),
                 created_at: None,
                 severity: LogSeverity::Info,
@@ -127,6 +128,7 @@ impl Runner {
                         let _ = create_log(
                             Logs {
                                 origin: origin_uid,
+                                run_id: Some(run_id),
                                 text: log_text,
                                 created_at: None,
                                 severity: severity,
@@ -143,6 +145,7 @@ impl Runner {
             let _ = create_log(
                 Logs {
                     origin: origin_uid,
+                                run_id: Some(run_id),
                     text: "Container stopped.".to_string(),
                     created_at: None,
                     severity: LogSeverity::Info,
